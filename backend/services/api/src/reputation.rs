@@ -87,6 +87,31 @@ lazy_static::lazy_static! {
     ]));
 }
 
+// ---------------------------------------------------------------------------
+// Poison-safe lock helpers
+//
+// A Mutex becomes "poisoned" when a thread panics while holding its guard.
+// `.lock().unwrap()` re-panics every subsequent caller, taking the entire
+// review/reputation read path down for the lifetime of the process.
+//
+// `.unwrap_or_else(|e| e.into_inner())` recovers the guarded data instead.
+// The inner value is still coherent — the only thing that went wrong is that
+// one previous write was interrupted. All subsequent callers continue to work,
+// and any partial state is detectable through normal validation.
+// ---------------------------------------------------------------------------
+
+/// Acquire the `REVIEW_CACHE` lock, recovering from a prior panic if needed.
+fn lock_review_cache(
+    cache: &Mutex<Vec<Review>>,
+) -> std::sync::MutexGuard<'_, Vec<Review>> {
+    cache.lock().unwrap_or_else(|poisoned| {
+        // Log at warn level so operations teams can see the event, then hand
+        // back the coherent inner data so callers keep working.
+        eprintln!("WARN: REVIEW_CACHE was poisoned — recovering inner data");
+        poisoned.into_inner()
+    })
+}
+
 /// Helper to format database errors consistently
 fn format_db_error(err: SqlxError) -> String {
     match err {
@@ -98,7 +123,7 @@ fn format_db_error(err: SqlxError) -> String {
 
 /// Get all reviews (development/testing function)
 pub fn get_mock_reviews() -> Vec<Review> {
-    REVIEW_CACHE.lock().unwrap().clone()
+    lock_review_cache(&REVIEW_CACHE).clone()
 }
 
 /// Get reviews for a specific creator address
@@ -131,9 +156,7 @@ pub async fn reviews_for_creator(creator_address: &str, pool: Option<&PgPool>) -
             })
             .map_err(format_db_error)
     } else {
-        Ok(REVIEW_CACHE
-            .lock()
-            .unwrap()
+        Ok(lock_review_cache(&REVIEW_CACHE)
             .iter()
             .filter(|r| r.creator_address == creator_address)
             .cloned()
@@ -198,7 +221,7 @@ pub async fn recent_reviews(limit: u32, pool: Option<&PgPool>) -> Result<Vec<Rev
             })
             .map_err(format_db_error)
     } else {
-        let mut reviews = REVIEW_CACHE.lock().unwrap().clone();
+        let mut reviews = lock_review_cache(&REVIEW_CACHE).clone();
         reviews.sort_by(|a, b| b.created_at.cmp(&a.created_at));
         reviews.truncate(limit as usize);
         Ok(reviews)
@@ -248,7 +271,7 @@ pub async fn submit_review(submission: ReviewSubmission, pool: Option<&PgPool>) 
             })
             .map_err(format_db_error)
     } else {
-        REVIEW_CACHE.lock().unwrap().push(new_review.clone());
+        lock_review_cache(&REVIEW_CACHE).push(new_review.clone());
         Ok(new_review)
     }
 }
@@ -389,6 +412,16 @@ lazy_static::lazy_static! {
         Arc::new(Mutex::new(CacheMap::new()));
 }
 
+/// Acquire the `REPUTATION_CACHE` lock, recovering from a prior panic if needed.
+fn lock_reputation_cache(
+    cache: &Mutex<CacheMap<String, (EffectiveReputation, Instant)>>,
+) -> std::sync::MutexGuard<'_, CacheMap<String, (EffectiveReputation, Instant)>> {
+    cache.lock().unwrap_or_else(|poisoned| {
+        eprintln!("WARN: REPUTATION_CACHE was poisoned — recovering inner data");
+        poisoned.into_inner()
+    })
+}
+
 /// Derive a 0–100 on-chain base score from the existing review aggregation.
 ///
 /// In production this would call the Stellar RPC to read the `stellar_insights`
@@ -417,7 +450,7 @@ pub async fn fetch_reputation_with_cache(
 ) -> Result<EffectiveReputation, String> {
     // Check cache first.
     {
-        let cache = REPUTATION_CACHE.lock().unwrap();
+        let cache = lock_reputation_cache(&REPUTATION_CACHE);
         if let Some((cached, stored_at)) = cache.get(creator_address) {
             let elapsed = stored_at.elapsed().as_secs();
             if elapsed < CACHE_TTL_SECS {
@@ -442,7 +475,7 @@ pub async fn fetch_reputation_with_cache(
 
     REPUTATION_CACHE
         .lock()
-        .unwrap()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
         .insert(creator_address.to_string(), (result.clone(), Instant::now()));
 
     Ok(result)
@@ -451,7 +484,7 @@ pub async fn fetch_reputation_with_cache(
 /// Remove a creator's cache entry so the next request forces a fresh RPC read.
 /// Call this whenever a new completed bounty or review is recorded.
 pub fn invalidate_reputation_cache(creator_address: &str) {
-    REPUTATION_CACHE.lock().unwrap().remove(creator_address);
+    lock_reputation_cache(&REPUTATION_CACHE).remove(creator_address);
 }
 
 #[cfg(test)]
@@ -545,5 +578,116 @@ mod tests {
         assert!(second.cache_ttl_seconds <= CACHE_TTL_SECS);
         // Clean up.
         invalidate_reputation_cache(addr);
+    }
+
+    // -------------------------------------------------------------------------
+    // Poison-recovery tests
+    //
+    // We use *local* Mutex instances so that a poisoning event in one test
+    // cannot bleed into shared global state and destabilise other tests.
+    // The helpers (`lock_review_cache` / `lock_reputation_cache`) are called
+    // directly with the local mutex so the same code paths exercised in
+    // production are tested here.
+    // -------------------------------------------------------------------------
+
+    /// Poison a `Vec<Review>` mutex mid-write and confirm reads still succeed.
+    ///
+    /// Strategy:
+    ///   1. Spawn a thread that acquires the lock, pushes a review, then
+    ///      panics — leaving the mutex poisoned.
+    ///   2. Join the thread (its panic is caught by `join()`).
+    ///   3. Call `lock_review_cache` on the poisoned mutex — it must *not*
+    ///      panic, and must return the data with the partial write included
+    ///      (the push completed before the panic).
+    #[test]
+    fn review_cache_survives_panic_mid_write() {
+        use std::sync::{Arc, Mutex};
+
+        let cache: Arc<Mutex<Vec<Review>>> = Arc::new(Mutex::new(vec![]));
+        let cache_clone = Arc::clone(&cache);
+
+        let poisoning_review = Review {
+            id: 9999,
+            creator_address: "PANIC_CREATOR".to_string(),
+            reviewer_address: "PANIC_REVIEWER".to_string(),
+            bounty_id: None,
+            rating: 5,
+            comment: "Written before the panic".to_string(),
+            verified: false,
+            created_at: chrono::Utc::now(),
+        };
+        let expected_id = poisoning_review.id;
+
+        // Spawn a thread that pushes the review then panics, poisoning the mutex.
+        let handle = std::thread::spawn(move || {
+            let mut guard = cache_clone.lock().unwrap();
+            guard.push(poisoning_review);
+            // The push completed; now simulate a panic (e.g. a downstream
+            // invariant check fails, an index is out of bounds, etc.).
+            panic!("simulated mid-write panic");
+        });
+
+        // The spawned thread panicked — join() captures that as an Err.
+        assert!(
+            handle.join().is_err(),
+            "thread should have panicked"
+        );
+
+        // The mutex is now poisoned.  lock_review_cache must recover it
+        // instead of propagating the panic.
+        let guard = lock_review_cache(&cache);
+        assert!(
+            !guard.is_empty(),
+            "cache should contain the review that was pushed before the panic"
+        );
+        assert_eq!(
+            guard[0].id, expected_id,
+            "recovered data should include the review written before the panic"
+        );
+    }
+
+    /// Poison a reputation `CacheMap` mutex mid-write and confirm reads still succeed.
+    #[test]
+    fn reputation_cache_survives_panic_mid_write() {
+        use std::sync::{Arc, Mutex};
+        use std::time::Instant;
+
+        let cache: Arc<Mutex<CacheMap<String, (EffectiveReputation, Instant)>>> =
+            Arc::new(Mutex::new(CacheMap::new()));
+        let cache_clone = Arc::clone(&cache);
+
+        let entry_key = "PANIC_ADDR".to_string();
+        let entry_key_check = entry_key.clone();
+
+        let signals = OffChainSignals {
+            response_rate: 1.0,
+            kyc_level: KycLevel::None,
+            profile_completeness: 1.0,
+            days_since_last_activity: 0,
+        };
+        let breakdown = compute_effective_score(80.0, &signals);
+        let reputation = EffectiveReputation {
+            creator_address: entry_key.clone(),
+            breakdown,
+            cached_at: chrono::Utc::now(),
+            cache_ttl_seconds: CACHE_TTL_SECS,
+            on_chain_verified: false,
+        };
+
+        // Insert the entry then panic — poisoning the mutex after the insert.
+        let handle = std::thread::spawn(move || {
+            let mut guard = cache_clone.lock().unwrap();
+            guard.insert(entry_key, (reputation, Instant::now()));
+            panic!("simulated mid-write panic after insert");
+        });
+
+        assert!(handle.join().is_err(), "thread should have panicked");
+
+        // lock_reputation_cache must recover the poisoned mutex.
+        let guard = lock_reputation_cache(&cache);
+        assert!(
+            guard.contains_key(&entry_key_check),
+            "reputation entry should be recoverable after cache was poisoned"
+        );
     }
 }
