@@ -62,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
     settings.validate()?;
 
     // Initialize the dispatcher
-    let dispatcher = NotificationDispatcher::new(settings.clone());
+    let dispatcher = NotificationDispatcher::new(settings.clone())?;
 
     // Initial service startup check
     tracing::info!("Notifications Service initialized and ready");
