@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import { hashApiKey } from '@/lib/api-keys';
 
 export interface GraphQLContext {
   req: NextRequest;
@@ -20,7 +20,10 @@ export async function createGraphQLContext(req: NextRequest): Promise<GraphQLCon
   if (authorization?.startsWith('Bearer ')) {
     const token = authorization.slice(7);
     try {
-      const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
+      const JWT_SECRET = process.env.JWT_SECRET;
+      if (!JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is not set');
+      }
       const decoded = jwt.verify(token, JWT_SECRET) as any;
 
       const dbUser = await prisma.user.findUnique({
@@ -40,30 +43,26 @@ export async function createGraphQLContext(req: NextRequest): Promise<GraphQLCon
   const apiKeyHeader = headers.get('x-api-key');
   if (!userId && apiKeyHeader) {
     try {
-      const [keyId, secret] = apiKeyHeader.split(':');
-      if (!keyId || !secret) {
-        throw new Error('Invalid API key format');
-      }
+      // Hash the incoming key for comparison against stored keyHash
+      const keyHash = hashApiKey(apiKeyHeader);
 
-      // Find the API key
+      // Find the API key by its hash
       const apiKey = await prisma.apiKey.findUnique({
-        where: { key: keyId },
-        select: { id: true, secretHash: true, userId: true, active: true, expiresAt: true },
+        where: { keyHash },
+        select: { id: true, userId: true, revokedAt: true, expiresAt: true },
       });
 
-      if (!apiKey || !apiKey.active) {
-        throw new Error('API key not found or inactive');
+      if (!apiKey) {
+        throw new Error('API key not found');
+      }
+
+      if (apiKey.revokedAt) {
+        throw new Error('API key has been revoked');
       }
 
       // Check expiration
       if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
         throw new Error('API key expired');
-      }
-
-      // Verify secret hash
-      const secretHash = crypto.createHash('sha256').update(secret).digest('hex');
-      if (secretHash !== apiKey.secretHash) {
-        throw new Error('Invalid API key secret');
       }
 
       userId = apiKey.userId;
