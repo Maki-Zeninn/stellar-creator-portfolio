@@ -6,6 +6,7 @@
 use actix_web::{web, HttpResponse};
 use deadpool_redis::{redis::AsyncCommands, Pool};
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -38,6 +39,53 @@ pub struct WebhookPayload {
 
 const REDIS_KEY: &str = "webhooks:registry";
 
+// ── Validation ────────────────────────────────────────────────────────────────
+
+fn is_safe_webhook_url(url_str: &str) -> Result<(), String> {
+    let parsed_url = reqwest::Url::parse(url_str)
+        .map_err(|_| "Invalid URL format".to_string())?;
+
+    if parsed_url.scheme() != "https" {
+        return Err("Webhook URL must use HTTPS scheme".to_string());
+    }
+
+    let host_str = parsed_url
+        .host_str()
+        .ok_or_else(|| "URL must have a valid host".to_string())?;
+
+    if is_private_or_reserved_host(host_str) {
+        return Err("Webhook URL cannot point to private, loopback, or reserved addresses".to_string());
+    }
+
+    Ok(())
+}
+
+fn is_private_or_reserved_host(host: &str) -> bool {
+    if host == "localhost" {
+        return true;
+    }
+
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        return match ip {
+            IpAddr::V4(v4) => {
+                v4.is_loopback()
+                    || v4.is_private()
+                    || v4.is_link_local()
+                    || v4.is_reserved()
+                    || v4.is_unspecified()
+            }
+            IpAddr::V6(v6) => {
+                v6.is_loopback()
+                    || v6.is_private()
+                    || v6.is_link_local()
+                    || v6.is_unspecified()
+            }
+        };
+    }
+
+    false
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 /// Register a new webhook
@@ -58,6 +106,13 @@ pub async fn register_webhook(
         return HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
             "error": "url and events are required"
+        }));
+    }
+
+    if let Err(e) = is_safe_webhook_url(&body.url) {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "success": false,
+            "error": e
         }));
     }
 
