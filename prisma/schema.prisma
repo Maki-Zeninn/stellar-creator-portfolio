@@ -82,6 +82,8 @@ model User {
   apiKeys             ApiKey[]
   endorsementsGiven   Endorsement[] @relation(name: "endorsements_given")
   kycSubmission       KYCSubmission?
+  testimonials        Testimonial[] @relation("testimonial_creator")
+  clientTestimonials  Testimonial[] @relation("testimonial_client")
 
   @@index([email])
 }
@@ -211,6 +213,7 @@ model Bounty {
   category    String?
   tags        String[]
   applications BountyApplication[]
+  testimonials Testimonial[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -670,6 +673,32 @@ model ZKNullifier {
   createdAt DateTime @default(now())
 
   @@index([nullifier])
+}
+
+// ── Testimonials ──────────────────────────────────────────────────────────────
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      User     @relation("testimonial_client", fields: [clientId], references: [id], onDelete: Cascade)
+  creatorId   String
+  creator     User     @relation("testimonial_creator", fields: [creatorId], references: [id], onDelete: Cascade)
+  bountyId    String?
+  bounty      Bounty?  @relation(fields: [bountyId], references: [id], onDelete: SetNull)
+  author      String
+  role        String
+  quote       String   @db.Text
+  rating      Int      // 1-5
+  featured    Boolean  @default(false)
+  videoUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([creatorId])
+  @@index([bountyId])
+  @@index([featured])
+  @@index([createdAt])
 }
 
 // ── OCR-based KYC Document Verification — Issue #782 ────────────────────

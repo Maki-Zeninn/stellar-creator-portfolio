@@ -19,7 +19,12 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 async function embedQuery(query: string): Promise<number[]> {
   if (!OPENAI_API_KEY) {
     // Fallback: return a deterministic mock vector for local dev.
-    return Array.from({ length: 1536 }, (_, i) => Math.sin(i + query.length));
+    // Hash based on full query content, not just length, so distinct queries produce distinct vectors.
+    let hash = 0;
+    for (let i = 0; i < query.length; i++) {
+      hash += query.charCodeAt(i);
+    }
+    return Array.from({ length: 1536 }, (_, i) => Math.sin(i + hash));
   }
 
   const res = await fetch(EMBED_ENDPOINT, {
