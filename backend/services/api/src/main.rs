@@ -1308,21 +1308,74 @@ async fn main() -> std::io::Result<()> {
 
     tracing::info!("Connecting to database: {}", database_url.replace("stellar_dev_password", "***"));
 
-    let pool = PgPoolOptions::new()
-        .max_connections(database_max_connections)
-        .idle_timeout(Some(Duration::from_secs(db_pool_idle_timeout_seconds)))
-        .log_slow_statements(
-            tracing::log::LevelFilter::Warn,
-            Duration::from_millis(slow_query_threshold_ms),
-        )
-        .connect(&database_url)
-        .await
-        .expect("Failed to connect to database");
+    const DB_MAX_ATTEMPTS: u32 = 5;
+    const DB_BASE_DELAY_MS: u64 = 500;
 
-    sqlx::migrate!("../../migrations")
-        .run(&pool)
-        .await
-        .expect("Failed to run database migrations");
+    let pool = {
+        let mut last_err = String::new();
+        let mut pool_opt: Option<PgPool> = None;
+        for attempt in 1..=DB_MAX_ATTEMPTS {
+            match PgPoolOptions::new()
+                .max_connections(database_max_connections)
+                .idle_timeout(Some(Duration::from_secs(db_pool_idle_timeout_seconds)))
+                .log_slow_statements(
+                    tracing::log::LevelFilter::Warn,
+                    Duration::from_millis(slow_query_threshold_ms),
+                )
+                .connect(&database_url)
+                .await
+            {
+                Ok(p) => {
+                    pool_opt = Some(p);
+                    break;
+                }
+                Err(e) => {
+                    last_err = e.to_string();
+                    if attempt < DB_MAX_ATTEMPTS {
+                        let delay = Duration::from_millis(DB_BASE_DELAY_MS * (1 << (attempt - 1)));
+                        tracing::warn!(
+                            attempt,
+                            DB_MAX_ATTEMPTS,
+                            delay_ms = delay.as_millis(),
+                            error = %e,
+                            "Database connection failed, retrying"
+                        );
+                        tokio::time::sleep(delay).await;
+                    }
+                }
+            }
+        }
+        pool_opt.unwrap_or_else(|| panic!("Failed to connect to database: {}", last_err))
+    };
+
+    {
+        let mut last_err = String::new();
+        for attempt in 1..=DB_MAX_ATTEMPTS {
+            match sqlx::migrate!("../../migrations").run(&pool).await {
+                Ok(_) => {
+                    last_err = String::new();
+                    break;
+                }
+                Err(e) => {
+                    last_err = e.to_string();
+                    if attempt < DB_MAX_ATTEMPTS {
+                        let delay = Duration::from_millis(DB_BASE_DELAY_MS * (1 << (attempt - 1)));
+                        tracing::warn!(
+                            attempt,
+                            DB_MAX_ATTEMPTS,
+                            delay_ms = delay.as_millis(),
+                            error = %e,
+                            "Database migration failed, retrying"
+                        );
+                        tokio::time::sleep(delay).await;
+                    }
+                }
+            }
+        }
+        if !last_err.is_empty() {
+            panic!("Failed to run database migrations: {}", last_err);
+        }
+    }
 
     tracing::info!("Database connected and migrations applied");
 
