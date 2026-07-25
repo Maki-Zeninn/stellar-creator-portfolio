@@ -340,6 +340,7 @@ export function validateInput(schema: ValidationSchema) {
         req.query[key] = InputValidator.sanitizeString(
           req.query[key] as string,
         );
+        req.query[key] = InputValidator.sanitizeHtml(req.query[key] as string);
       }
     }
 
@@ -348,6 +349,7 @@ export function validateInput(schema: ValidationSchema) {
       for (const key in req.body) {
         if (typeof req.body[key] === "string") {
           req.body[key] = InputValidator.sanitizeString(req.body[key]);
+          req.body[key] = InputValidator.sanitizeHtml(req.body[key]);
         }
       }
     }
