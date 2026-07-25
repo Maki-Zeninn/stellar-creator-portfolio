@@ -8,7 +8,7 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation}
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -70,28 +70,44 @@ pub fn verify_access_token(
 
 #[derive(Clone, Default)]
 pub struct RevocationList {
-    revoked_jtis: Arc<Mutex<HashSet<Uuid>>>,
+    revoked_jtis: Arc<Mutex<HashMap<Uuid, i64>>>,
 }
 
 impl RevocationList {
     pub fn new() -> Self {
         Self {
-            revoked_jtis: Arc::new(Mutex::new(HashSet::new())),
+            revoked_jtis: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub fn revoke(&self, jti: Uuid) {
-        self.revoked_jtis
+    pub fn revoke(&self, jti: Uuid, exp: i64) {
+        let mut revoked = self
+            .revoked_jtis
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .insert(jti);
+            .unwrap_or_else(|e| e.into_inner());
+        revoked.insert(jti, exp);
+        self.cleanup_expired(&mut revoked);
     }
 
-    pub fn is_revoked(&self, jti: &Uuid) -> bool {
-        self.revoked_jtis
+    pub fn is_revoked(&self, jti: &Uuid, now: i64) -> bool {
+        let mut revoked = self
+            .revoked_jtis
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .contains(jti)
+            .unwrap_or_else(|e| e.into_inner());
+
+        if let Some(&exp) = revoked.get(jti) {
+            if exp > now {
+                return true;
+            } else {
+                revoked.remove(jti);
+            }
+        }
+        false
+    }
+
+    fn cleanup_expired(&self, revoked: &mut HashMap<Uuid, i64>) {
+        let now = Utc::now().timestamp();
+        revoked.retain(|_, exp| *exp > now);
     }
 }
 
@@ -103,7 +119,8 @@ pub fn verify_access_token_with_revocation(
     let claims = verify_access_token(token, jwt_secret)
         .map_err(|e| TokenError::Jwt(e.to_string()))?;
 
-    if revocation_list.is_revoked(&claims.jti) {
+    let now = Utc::now().timestamp();
+    if revocation_list.is_revoked(&claims.jti, now) {
         return Err(TokenError::Revoked);
     }
 
@@ -175,10 +192,11 @@ mod tests {
         let claims = verify_access_token(&token, secret).unwrap();
 
         let rev_list = RevocationList::new();
-        assert!(!rev_list.is_revoked(&claims.jti));
+        let now = Utc::now().timestamp();
+        assert!(!rev_list.is_revoked(&claims.jti, now));
 
-        rev_list.revoke(claims.jti);
-        assert!(rev_list.is_revoked(&claims.jti));
+        rev_list.revoke(claims.jti, claims.exp);
+        assert!(rev_list.is_revoked(&claims.jti, now));
 
         let result = verify_access_token_with_revocation(&token, secret, &rev_list);
         assert!(matches!(result, Err(TokenError::Revoked)));
@@ -188,6 +206,7 @@ mod tests {
     fn revocation_check_survives_poisoned_lock() {
         let rev_list = RevocationList::new();
         let jti = Uuid::new_v4();
+        let exp = Utc::now().timestamp() + 900;
 
         // Poison the lock by panicking while holding it in another thread.
         let list_clone = rev_list.clone();
@@ -198,9 +217,10 @@ mod tests {
         assert!(handle.join().is_err());
 
         // Revocation checks must still work (not panic) after the lock is poisoned.
-        assert!(!rev_list.is_revoked(&jti));
-        rev_list.revoke(jti);
-        assert!(rev_list.is_revoked(&jti));
+        let now = Utc::now().timestamp();
+        assert!(!rev_list.is_revoked(&jti, now));
+        rev_list.revoke(jti, exp);
+        assert!(rev_list.is_revoked(&jti, now));
     }
 
     #[test]
@@ -212,5 +232,16 @@ mod tests {
         let rev_list = RevocationList::new();
         let result = verify_access_token_with_revocation(&token, secret, &rev_list);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn revocation_list_expires_old_entries() {
+        let rev_list = RevocationList::new();
+        let jti = Uuid::new_v4();
+        let exp_time = Utc::now().timestamp() - 100;
+
+        rev_list.revoke(jti, exp_time);
+        let now = Utc::now().timestamp();
+        assert!(!rev_list.is_revoked(&jti, now));
     }
 }

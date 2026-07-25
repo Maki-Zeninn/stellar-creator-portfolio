@@ -1,4 +1,11 @@
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static BOUNTY_ID_COUNTER: AtomicU64 = AtomicU64::new(3);
+lazy_static::lazy_static! {
+    static ref APPLICATIONS: Arc<Mutex<Vec<BountyApplication>>> = Arc::new(Mutex::new(Vec::new()));
+}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BountyRequest {
@@ -58,8 +65,9 @@ pub fn get_bounty_by_id(bounty_id: u64) -> Option<Bounty> {
 }
 
 pub fn create_bounty(request: BountyRequest) -> Bounty {
+    let id = BOUNTY_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
     Bounty {
-        id: 1, // In production, this would be generated
+        id,
         title: request.title,
         description: request.description,
         budget: request.budget,
@@ -70,14 +78,24 @@ pub fn create_bounty(request: BountyRequest) -> Bounty {
 }
 
 pub fn apply_for_bounty(bounty_id: u64, application: BountyApplication) -> Result<(), String> {
-    // In production, this would validate and store the application
     if application.proposal.trim().is_empty() {
         return Err("Proposal cannot be empty".to_string());
     }
     if application.proposed_budget <= 0 {
         return Err("Proposed budget must be positive".to_string());
     }
+
+    let mut apps = APPLICATIONS.lock().unwrap();
+    apps.push(application);
     Ok(())
+}
+
+pub fn get_applications_for_bounty(bounty_id: u64) -> Vec<BountyApplication> {
+    let apps = APPLICATIONS.lock().unwrap();
+    apps.iter()
+        .filter(|app| app.bounty_id == bounty_id)
+        .cloned()
+        .collect()
 }
 
 #[cfg(test)]
@@ -144,5 +162,23 @@ mod tests {
     fn apply_for_bounty_accepts_valid_application() {
         let application = sample_application(1);
         assert_eq!(apply_for_bounty(1, application), Ok(()));
+    }
+
+    #[test]
+    fn get_applications_for_bounty_returns_stored_applications() {
+        let app1 = sample_application(99);
+        let app2 = sample_application(99);
+        let app3 = sample_application(100);
+
+        apply_for_bounty(99, app1.clone()).unwrap();
+        apply_for_bounty(99, app2.clone()).unwrap();
+        apply_for_bounty(100, app3).unwrap();
+
+        let bounty_99_apps = get_applications_for_bounty(99);
+        assert_eq!(bounty_99_apps.len(), 2);
+        assert!(bounty_99_apps.iter().all(|app| app.bounty_id == 99));
+
+        let bounty_100_apps = get_applications_for_bounty(100);
+        assert_eq!(bounty_100_apps.len(), 1);
     }
 }
