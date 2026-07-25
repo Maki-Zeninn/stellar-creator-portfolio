@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 /**
  * API Key Authentication
@@ -155,10 +156,16 @@ export function apiKeyAuthentication(
   }
 
   if (authHeader.startsWith("Bearer ")) {
-    // JWT token handling can be added here
     const token = authHeader.substring(7);
     try {
-      // Validate JWT token
+      const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
+      const decoded = jwt.verify(token, jwtSecret) as any;
+
+      if (!decoded || !decoded.id || !decoded.email) {
+        return res.status(401).json({ error: "Invalid token claims" });
+      }
+
+      req.user = { id: decoded.id, email: decoded.email };
       req.requestId = crypto.randomUUID();
       return next();
     } catch (error) {
