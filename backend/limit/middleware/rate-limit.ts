@@ -36,6 +36,7 @@ export const ENDPOINT_RATE_LIMITS = {
 
 let prometheusMetrics: {
   rateLimitHitsTotal?: { inc: (labels: any) => void };
+  redisFallbackTotal?: { inc: (labels: any) => void };
 } = {};
 
 /**
@@ -53,6 +54,13 @@ export function initPrometheusMetrics(register: any): void {
       labelNames: ["endpoint", "result"],
       registers: [register],
     });
+
+    prometheusMetrics.redisFallbackTotal = new prometheus.Counter({
+      name: "rate_limit_redis_fallback_total",
+      help: "Total number of Redis fallbacks to in-memory rate limiting",
+      labelNames: ["endpoint", "error_type"],
+      registers: [register],
+    });
   } catch {
     // Prometheus not installed; metrics will be no-ops
   }
@@ -67,6 +75,15 @@ function recordRateLimitMetric(
 ): void {
   if (prometheusMetrics.rateLimitHitsTotal) {
     prometheusMetrics.rateLimitHitsTotal.inc({ endpoint, result });
+  }
+}
+
+/**
+ * Record a Redis fallback event in Prometheus
+ */
+function recordRedisFallbackMetric(endpoint: string, errorType: string): void {
+  if (prometheusMetrics.redisFallbackTotal) {
+    prometheusMetrics.redisFallbackTotal.inc({ endpoint, error_type: errorType });
   }
 }
 
@@ -231,6 +248,19 @@ export class RateLimiter {
 
     try {
       const windowStart = now - this.config.windowMs;
+      const blockedUntilKey = `${key}:blocked`;
+      const endpointName = this.config.endpointName || "unknown";
+
+      // Check if currently blocked (DDoS protection)
+      const blockedUntilStr = await this.redisClient.get(blockedUntilKey);
+      if (blockedUntilStr) {
+        const blockedUntil = parseInt(blockedUntilStr, 10);
+        if (now < blockedUntil) {
+          return { limited: true, remaining: 0, reset: blockedUntil };
+        }
+        // Block expired, delete it
+        await this.redisClient.del(blockedUntilKey);
+      }
 
       // Remove old entries outside the window
       await this.redisClient.zRemRangeByScore(key, "-inf", windowStart);
@@ -245,13 +275,40 @@ export class RateLimiter {
       // Set expiration (window + extra time for safety)
       await this.redisClient.expire(key, Math.ceil((this.config.windowMs + 10000) / 1000));
 
+      // If limit reached, set block duration
+      if (isLimited) {
+        const blockedUntil = now + (this.config.blockDurationMs || 300000);
+        await this.redisClient.setEx(
+          blockedUntilKey,
+          Math.ceil((this.config.blockDurationMs || 300000) / 1000),
+          blockedUntil.toString(),
+        );
+      }
+
       return {
         limited: isLimited,
         remaining: Math.max(0, this.config.maxRequests - count),
         reset: now + this.config.windowMs,
       };
     } catch (error) {
-      console.error("Redis rate limit check failed:", error);
+      // Determine error type for metric
+      let errorType = "unknown";
+      if (error instanceof Error) {
+        if (error.message.includes("ECONNREFUSED")) {
+          errorType = "connection_refused";
+        } else if (error.message.includes("timeout")) {
+          errorType = "timeout";
+        } else {
+          errorType = error.name || "unknown";
+        }
+      }
+
+      const endpointName = this.config.endpointName || "unknown";
+      console.error(`Redis rate limit check failed (${errorType}):`, error);
+
+      // Record fallback metric
+      recordRedisFallbackMetric(endpointName, errorType);
+
       // Fall back to in-memory on Redis error
       return this.checkLimitMemory(key, now);
     }
@@ -472,16 +529,22 @@ export class AdaptiveRateLimiter extends RateLimiter {
    * Override middleware to use adaptive limits
    */
   public middleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
-      // Temporarily adjust max requests
+    return async (req: Request, res: Response, next: NextFunction) => {
+      // Compute adjusted limit at request start
+      const adjustedLimit = this.getAdjustedLimit();
       const originalMax = (this as any).config.maxRequests;
-      (this as any).config.maxRequests = this.getAdjustedLimit();
 
-      const middleware = super.middleware();
-      middleware(req, res, next);
+      // Temporarily set adjusted limit
+      (this as any).config.maxRequests = adjustedLimit;
 
-      // Restore original max
-      (this as any).config.maxRequests = originalMax;
+      try {
+        // Get parent middleware and await it completely before restoring config
+        const parentMiddleware = super.middleware();
+        await parentMiddleware(req, res, next);
+      } finally {
+        // Restore original max after middleware completes
+        (this as any).config.maxRequests = originalMax;
+      }
     };
   }
 }
