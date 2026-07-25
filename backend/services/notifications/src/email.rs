@@ -9,25 +9,25 @@ pub struct EmailProvider {
 }
 
 impl EmailProvider {
-    pub fn new(settings: &Settings) -> Self {
+    pub fn new(settings: &Settings) -> Result<Self> {
         let creds = Credentials::new(settings.smtp_user.clone(), settings.smtp_pass.clone());
 
         let transport = SmtpTransport::relay(&settings.smtp_host)
-             .unwrap() // Safe since host is validated or default
-             .port(settings.smtp_port)
-             .credentials(creds)
-             .build();
+            .map_err(|e| NotificationError::Config(format!("Invalid SMTP host '{}': {e}", settings.smtp_host)))?
+            .port(settings.smtp_port)
+            .credentials(creds)
+            .build();
 
-        Self {
+        Ok(Self {
             transport,
             from_address: settings.smtp_from.clone(),
-        }
+        })
     }
 
     pub async fn send(&self, recipient: &str, subject: &str, body: &str) -> Result<()> {
         let email = Message::builder()
-            .from(self.from_address.parse().map_err(|e| NotificationError::Internal(format!("Invalid from address: {e}"))).unwrap())
-            .to(recipient.parse().map_err(|e| NotificationError::InvalidRecipient(format!("{e}"))).unwrap())
+            .from(self.from_address.parse().map_err(|e| NotificationError::Internal(format!("Invalid from address '{}': {e}", self.from_address)))?)
+            .to(recipient.parse().map_err(|e| NotificationError::InvalidRecipient(format!("'{recipient}': {e}")))?)
             .subject(subject)
             .body(body.to_string())
             .map_err(|e| NotificationError::Internal(e.to_string()))?;

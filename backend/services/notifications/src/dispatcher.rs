@@ -44,12 +44,12 @@ pub struct NotificationDispatcher {
 }
 
 impl NotificationDispatcher {
-    pub fn new(settings: Settings) -> Self {
-        Self {
-            email: Arc::new(EmailProvider::new(&settings)),
+    pub fn new(settings: Settings) -> Result<Self> {
+        Ok(Self {
+            email: Arc::new(EmailProvider::new(&settings)?),
             sms: Arc::new(SmsProvider::new(&settings)),
             push: Arc::new(PushProvider::new(&settings)),
-        }
+        })
     }
 
     #[cfg(test)]
