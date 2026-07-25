@@ -101,23 +101,58 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const saved: PersistedWallet = JSON.parse(raw);
-      if (saved.address && saved.publicKey && saved.walletType) {
-        setState((s) => ({
-          ...s,
-          address: saved.address,
-          publicKey: saved.publicKey,
-          network: saved.network,
-          walletType: saved.walletType,
-          isConnected: true,
-        }));
+    let cancelled = false;
+
+    async function restoreAndVerify() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const saved: PersistedWallet = JSON.parse(raw);
+        if (!saved.address || !saved.publicKey || !saved.walletType) return;
+
+        // Verify the wallet is actually still connected
+        try {
+          const adapter = await getWalletAdapter(saved.walletType);
+          const [publicKey, network] = await Promise.all([
+            adapter.getPublicKey(),
+            adapter.getNetwork(),
+          ]);
+
+          if (!cancelled) {
+            setState((s) => ({
+              ...s,
+              address: publicKey,
+              publicKey,
+              network,
+              walletType: saved.walletType,
+              isConnected: true,
+            }));
+          }
+        } catch {
+          // Wallet not actually connected; clear saved state
+          if (!cancelled) {
+            localStorage.removeItem(STORAGE_KEY);
+            setState((s) => ({
+              ...s,
+              isConnected: false,
+              address: null,
+              publicKey: null,
+              walletType: null,
+            }));
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
     }
+
+    restoreAndVerify();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const connect = useCallback(async (walletType: WalletType) => {
