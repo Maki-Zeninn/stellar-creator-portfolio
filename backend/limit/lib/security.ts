@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 /**
  * API Key Authentication
@@ -61,14 +62,16 @@ export class ApiKeyManager {
   }
 
   /**
-   * Hash secret for storage
+   * Hash secret for storage using scrypt KDF
    */
-  private hashSecret(secret: string): string {
-    return crypto.createHash("sha256").update(secret).digest("hex");
+  private hashSecret(secret: string, salt?: Buffer): string {
+    const secretSalt = salt || crypto.randomBytes(16);
+    const hash = crypto.scryptSync(secret, secretSalt, 32);
+    return secretSalt.toString("hex") + ":" + hash.toString("hex");
   }
 
   /**
-   * Verify API key and secret
+   * Verify API key and secret using constant-time comparison
    */
   public verify(key: string, secret: string): ApiKey | null {
     const apiKey = this.keys.get(key);
@@ -82,8 +85,19 @@ export class ApiKeyManager {
       return null;
     }
 
-    const hashedSecret = this.hashSecret(secret);
-    if (hashedSecret !== apiKey.secret) {
+    const [storedSalt, storedHash] = apiKey.secret.split(":");
+    if (!storedSalt || !storedHash) {
+      return null;
+    }
+
+    const hashedSecret = this.hashSecret(secret, Buffer.from(storedSalt, "hex"));
+    const [, computedHash] = hashedSecret.split(":");
+
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(storedHash))) {
+        return null;
+      }
+    } catch {
       return null;
     }
 
@@ -142,10 +156,16 @@ export function apiKeyAuthentication(
   }
 
   if (authHeader.startsWith("Bearer ")) {
-    // JWT token handling can be added here
     const token = authHeader.substring(7);
     try {
-      // Validate JWT token
+      const jwtSecret = process.env.JWT_SECRET || "your-secret-key";
+      const decoded = jwt.verify(token, jwtSecret) as any;
+
+      if (!decoded || !decoded.id || !decoded.email) {
+        return res.status(401).json({ error: "Invalid token claims" });
+      }
+
+      req.user = { id: decoded.id, email: decoded.email };
       req.requestId = crypto.randomUUID();
       return next();
     } catch (error) {
@@ -320,6 +340,7 @@ export function validateInput(schema: ValidationSchema) {
         req.query[key] = InputValidator.sanitizeString(
           req.query[key] as string,
         );
+        req.query[key] = InputValidator.sanitizeHtml(req.query[key] as string);
       }
     }
 
@@ -328,6 +349,7 @@ export function validateInput(schema: ValidationSchema) {
       for (const key in req.body) {
         if (typeof req.body[key] === "string") {
           req.body[key] = InputValidator.sanitizeString(req.body[key]);
+          req.body[key] = InputValidator.sanitizeHtml(req.body[key]);
         }
       }
     }
