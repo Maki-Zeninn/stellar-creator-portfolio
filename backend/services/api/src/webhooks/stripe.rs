@@ -7,6 +7,7 @@
 /// in the `X-Webhook-Signature` header.  The secret is read from the
 /// `WEBHOOK_SECRET` environment variable.
 use actix_web::{web, HttpRequest, HttpResponse};
+use deadpool_redis::{redis::AsyncCommands, Pool};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use serde::{Deserialize, Serialize};
@@ -51,20 +52,48 @@ pub struct WebhookAck {
 /// Verify the HMAC-SHA256 signature supplied in `X-Webhook-Signature`.
 /// Returns `Ok(())` when valid, `Err(reason)` otherwise.
 pub fn verify_signature(secret: &str, body: &[u8], signature_header: &str) -> Result<(), &'static str> {
+    use subtle::ConstantTimeEq;
     type HmacSha256 = Hmac<Sha256>;
 
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
         .map_err(|_| "invalid secret")?;
     mac.update(body);
 
-    let expected = mac.finalize().into_bytes();
-    let expected_hex = hex::encode(expected);
-
-    // Constant-time comparison via hex strings
+    let expected_mac = mac.finalize().into_bytes();
     let sig = signature_header.trim_start_matches("sha256=");
-    if sig != expected_hex {
+
+    let provided_bytes = hex::decode(sig).map_err(|_| "invalid hex in signature")?;
+
+    if expected_mac.ct_eq(&provided_bytes[..]).unwrap_u8() == 0 {
         return Err("signature mismatch");
     }
+    Ok(())
+}
+
+// ── Idempotency ───────────────────────────────────────────────────────────────
+
+const PROCESSED_EVENTS_PREFIX: &str = "webhook:processed:";
+const PROCESSED_EVENTS_TTL: usize = 86400; // 24 hours
+
+/// Check if an event has already been processed (idempotency check).
+/// Returns `Ok(false)` if new, `Ok(true)` if duplicate, `Err` on Redis error.
+async fn is_event_duplicate(redis: &Pool, event_id: &str) -> Result<bool, String> {
+    let Ok(mut conn) = redis.get().await else {
+        return Err("Redis connection failed".to_string());
+    };
+    let key = format!("{}{}", PROCESSED_EVENTS_PREFIX, event_id);
+    let exists: bool = conn.exists(&key).await.unwrap_or(false);
+    Ok(exists)
+}
+
+/// Mark an event as processed with a TTL.
+async fn mark_event_processed(redis: &Pool, event_id: &str) -> Result<(), String> {
+    let Ok(mut conn) = redis.get().await else {
+        return Err("Redis connection failed".to_string());
+    };
+    let key = format!("{}{}", PROCESSED_EVENTS_PREFIX, event_id);
+    let _: () = conn.set_ex(&key, "1", PROCESSED_EVENTS_TTL).await
+        .map_err(|e| format!("Failed to mark event processed: {}", e))?;
     Ok(())
 }
 
@@ -86,11 +115,12 @@ pub fn map_event_to_action(event_type: &WebhookEventType) -> &'static str {
 
 /// POST /api/v1/webhooks/payment
 ///
-/// Accepts an external payment event, verifies its signature, and
-/// dispatches the corresponding escrow operation.
+/// Accepts an external payment event, verifies its signature, checks for duplicates,
+/// and dispatches the corresponding escrow operation.
 pub async fn payment_webhook(
     req: HttpRequest,
     body: web::Bytes,
+    redis: web::Data<Pool>,
 ) -> HttpResponse {
     let secret = std::env::var("WEBHOOK_SECRET").unwrap_or_default();
 
@@ -132,15 +162,40 @@ pub async fn payment_webhook(
         }
     };
 
+    // 3. Check idempotency (avoid reprocessing)
+    match is_event_duplicate(&redis, &payload.provider_event_id).await {
+        Ok(true) => {
+            info!(
+                "Duplicate webhook received: {:?} for escrow {} (provider_event_id={})",
+                payload.event_type, payload.escrow_id, payload.provider_event_id
+            );
+            let ack = WebhookAck {
+                received: true,
+                escrow_id: payload.escrow_id.clone(),
+                action_taken: "duplicate".to_string(),
+            };
+            return HttpResponse::Ok().json(ApiResponse::ok(ack, None));
+        }
+        Ok(false) => {
+            if let Err(e) = mark_event_processed(&redis, &payload.provider_event_id).await {
+                warn!("Failed to mark event as processed: {}", e);
+            }
+        }
+        Err(e) => {
+            warn!("Idempotency check failed: {}", e);
+            // Continue processing — don't fail on Redis errors
+        }
+    }
+
     info!(
         "Webhook received: {:?} for escrow {} (provider_event_id={})",
         payload.event_type, payload.escrow_id, payload.provider_event_id
     );
 
-    // 3. Map event → escrow action
+    // 4. Map event → escrow action
     let action = map_event_to_action(&payload.event_type);
 
-    // 4. Dispatch (placeholder — wire to Stellar SDK in production)
+    // 5. Dispatch (placeholder — wire to Stellar SDK in production)
     info!("Dispatching action '{}' for escrow {}", action, payload.escrow_id);
 
     let ack = WebhookAck {

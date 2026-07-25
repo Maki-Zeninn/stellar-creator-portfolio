@@ -3,14 +3,16 @@
 /// Allows external consumers to register HTTPS endpoints that receive
 /// platform events (bounty, escrow, governance) as they are emitted by
 /// the Soroban contracts indexed by the event indexer.
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use deadpool_redis::{redis::AsyncCommands, Pool};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::ApiResponse;
+use crate::{ApiResponse, auth::Claims};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,8 +29,11 @@ pub struct WebhookRegistration {
 #[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 pub struct Webhook {
     pub id: String,
+    pub owner: String,
     pub url: String,
     pub events: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -95,13 +100,23 @@ fn is_private_or_reserved_host(host: &str) -> bool {
     responses(
         (status = 201, description = "Webhook registered"),
         (status = 400, description = "Invalid request"),
+        (status = 401, description = "Unauthorized"),
     ),
     tag = "webhooks"
 )]
 pub async fn register_webhook(
     redis: web::Data<Pool>,
+    req: HttpRequest,
     body: web::Json<WebhookRegistration>,
 ) -> HttpResponse {
+    let claims = match req.extensions().get::<Claims>() {
+        Some(c) => c.clone(),
+        None => return HttpResponse::Unauthorized().json(serde_json::json!({
+            "success": false,
+            "error": "Unauthorized"
+        })),
+    };
+
     if body.url.is_empty() || body.events.is_empty() {
         return HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
@@ -118,8 +133,10 @@ pub async fn register_webhook(
 
     let webhook = Webhook {
         id: Uuid::new_v4().to_string(),
+        owner: claims.sub.clone(),
         url: body.url.clone(),
         events: body.events.clone(),
+        secret: body.secret.clone(),
     };
 
     let serialized = match serde_json::to_string(&webhook) {
@@ -146,13 +163,32 @@ pub async fn register_webhook(
 /// List all registered webhooks
 #[utoipa::path(
     get, path = "/api/webhooks",
-    responses((status = 200, description = "List of webhooks")),
+    responses(
+        (status = 200, description = "List of webhooks"),
+        (status = 401, description = "Unauthorized"),
+    ),
     tag = "webhooks"
 )]
-pub async fn list_webhooks(redis: web::Data<Pool>) -> HttpResponse {
-    let webhooks = load_all(&redis).await;
+pub async fn list_webhooks(
+    redis: web::Data<Pool>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let claims = match req.extensions().get::<Claims>() {
+        Some(c) => c.clone(),
+        None => return HttpResponse::Unauthorized().json(serde_json::json!({
+            "success": false,
+            "error": "Unauthorized"
+        })),
+    };
+
+    let all_webhooks = load_all(&redis).await;
+    let user_webhooks: Vec<_> = all_webhooks
+        .into_iter()
+        .filter(|w| w.owner == claims.sub)
+        .collect();
+
     HttpResponse::Ok().json(ApiResponse::ok(
-        serde_json::json!({ "webhooks": webhooks }),
+        serde_json::json!({ "webhooks": user_webhooks }),
         None::<String>,
     ))
 }
@@ -163,21 +199,58 @@ pub async fn list_webhooks(redis: web::Data<Pool>) -> HttpResponse {
     params(("id" = String, Path, description = "Webhook ID")),
     responses(
         (status = 200, description = "Webhook deleted"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden — not webhook owner"),
         (status = 404, description = "Not found"),
     ),
     tag = "webhooks"
 )]
-pub async fn delete_webhook(redis: web::Data<Pool>, path: web::Path<String>) -> HttpResponse {
+pub async fn delete_webhook(
+    redis: web::Data<Pool>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let claims = match req.extensions().get::<Claims>() {
+        Some(c) => c.clone(),
+        None => return HttpResponse::Unauthorized().json(serde_json::json!({
+            "success": false,
+            "error": "Unauthorized"
+        })),
+    };
+
     let id = path.into_inner();
-    if let Ok(mut conn) = redis.get().await {
-        let deleted: i64 = conn.hdel(REDIS_KEY, &id).await.unwrap_or(0);
-        if deleted == 0 {
-            return HttpResponse::NotFound().json(serde_json::json!({
-                "success": false,
-                "error": "Webhook not found"
-            }));
-        }
+    let Ok(mut conn) = redis.get().await else {
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "success": false,
+            "error": "Database error"
+        }));
+    };
+
+    let webhook_json: Option<String> = conn.hget(REDIS_KEY, &id).await.unwrap_or(None);
+    let webhook = match webhook_json.and_then(|j| serde_json::from_str(&j).ok()) {
+        Some(w) => w,
+        None => return HttpResponse::NotFound().json(serde_json::json!({
+            "success": false,
+            "error": "Webhook not found"
+        })),
+    };
+
+    let webhook: Webhook = webhook;
+    if webhook.owner != claims.sub {
+        return HttpResponse::Forbidden().json(serde_json::json!({
+            "success": false,
+            "error": "Not webhook owner"
+        }));
     }
+
+    let deleted: i64 = conn.hdel(REDIS_KEY, &id).await.unwrap_or(0);
+    if deleted == 0 {
+        return HttpResponse::NotFound().json(serde_json::json!({
+            "success": false,
+            "error": "Webhook not found"
+        }));
+    }
+
     HttpResponse::Ok().json(ApiResponse::ok(
         serde_json::json!({ "id": id }),
         Some("Webhook deleted".to_string()),
@@ -196,8 +269,31 @@ pub async fn trigger_webhooks(redis: &Pool, event: &str, data: serde_json::Value
         let client = client.clone();
         let payload = payload.clone();
         let url = wh.url.clone();
+        let secret = wh.secret.clone();
+
         tokio::spawn(async move {
-            if let Err(e) = client.post(&url).json(&payload).send().await {
+            let payload_bytes = match serde_json::to_vec(&payload) {
+                Ok(b) => b,
+                Err(e) => {
+                    tracing::error!("Failed to serialize webhook payload: {}", e);
+                    return;
+                }
+            };
+
+            let mut request = client.post(&url).json(&payload);
+
+            if let Some(sec) = secret {
+                type HmacSha256 = Hmac<Sha256>;
+                let mut mac = HmacSha256::new_from_slice(sec.as_bytes()).unwrap_or_else(|_| {
+                    tracing::warn!("Invalid HMAC secret for webhook");
+                    return;
+                });
+                mac.update(&payload_bytes);
+                let signature = format!("sha256={}", hex::encode(mac.finalize().into_bytes()));
+                request = request.header("X-Webhook-Signature", signature);
+            }
+
+            if let Err(e) = request.send().await {
                 tracing::warn!("Webhook delivery failed to {}: {}", url, e);
             }
         });
