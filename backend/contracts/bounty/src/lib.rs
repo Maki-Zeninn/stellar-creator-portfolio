@@ -61,11 +61,20 @@ pub enum DataKey {
 /// Escrow Contract Client Interface
 #[contractclient(name = "EscrowContractClient")]
 pub trait EscrowContractTrait {
+    fn deposit(
+        env: Env,
+        bounty_id: u64,
+        payer: Address,
+        payee: Address,
+        amount: i128,
+        token: Address,
+        release_condition: ReleaseCondition,
+    ) -> u64;
     fn refund_expired_bounty(env: Env, bounty_id: u64, bounty_contract: Address) -> bool;
 }
 
 /// Bounty Status Enum
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[contracttype]
 pub enum BountyStatus {
     Open = 0,
@@ -112,6 +121,13 @@ pub struct BountyContract;
 impl BountyContract {
     pub fn set_escrow_contract(env: Env, admin: Address, escrow: Address) -> bool {
         admin.require_auth();
+        let stored_admin_key = Symbol::new(&env, "bounty_admin");
+        let stored_admin: Address = env
+            .storage()
+            .persistent()
+            .get::<Symbol, Address>(&stored_admin_key)
+            .expect("Contract admin not set");
+        assert_eq!(admin, stored_admin, "unauthorized");
         env.storage()
             .persistent()
             .set(&DataKey::EscrowContract, &escrow);
@@ -319,7 +335,7 @@ impl BountyContract {
         let application = BountyApplication {
             id: application_id,
             bounty_id,
-            freelancer,
+            freelancer: freelancer.clone(),
             proposal,
             proposed_budget,
             timeline,
@@ -824,5 +840,47 @@ mod tests {
         let bounty = contract.get_bounty(&bounty_id);
         assert_eq!(bounty.creator, creator);
         assert_eq!(bounty.budget, 5000i128);
+    }
+
+    #[test]
+    fn test_set_escrow_contract_as_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+
+        let admin = Address::generate(&env);
+        let escrow = Address::generate(&env);
+        contract.set_admin(&admin);
+
+        assert!(contract.set_escrow_contract(&admin, &escrow));
+    }
+
+    #[test]
+    #[should_panic(expected = "unauthorized")]
+    fn test_set_escrow_contract_rejects_non_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let escrow = Address::generate(&env);
+        contract.set_admin(&admin);
+
+        // Attacker authenticates as themselves, but is not the stored admin.
+        contract.set_escrow_contract(&attacker, &escrow);
+    }
+
+    #[test]
+    fn test_set_admin_requires_auth() {
+        use stellar_contract_test_utils::{assert_requires_auth, new_address, unauthorized_env};
+
+        let env = unauthorized_env();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+        let admin = new_address(&env);
+
+        assert_requires_auth(|| {
+            contract.set_admin(&admin);
+        });
     }
 }

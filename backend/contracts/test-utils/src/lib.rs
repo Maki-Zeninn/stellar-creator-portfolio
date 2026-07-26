@@ -55,8 +55,11 @@ pub fn setup_funded_token(env: &Env, mint_to: &Address, amount: i128) -> Address
 /// required signer hasn't authorized the call. Use with an
 /// [`unauthorized_env`] (or an env where the relevant address's auth was
 /// never mocked/provided).
-pub fn assert_requires_auth<F: FnOnce() + std::panic::UnwindSafe>(f: F) {
-    let result = std::panic::catch_unwind(f);
+///
+/// The closure is wrapped in `AssertUnwindSafe` so typical Soroban client
+/// captures are usable without each call site fighting `UnwindSafe` bounds.
+pub fn assert_requires_auth<F: FnOnce()>(f: F) {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
     assert!(
         result.is_err(),
         "expected call to panic due to missing authorization, but it succeeded"

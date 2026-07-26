@@ -3,7 +3,7 @@
 use super::*;
 use soroban_sdk::testutils::Ledger;
 use soroban_sdk::{Env, String};
-use stellar_contract_test_utils::{new_address, test_env};
+use stellar_contract_test_utils::{assert_requires_auth, new_address, test_env, unauthorized_env};
 
 fn setup() -> (Env, GovernanceContractClient<'static>, Address) {
     let env = test_env();
@@ -113,4 +113,31 @@ fn test_quorum_threshold_is_governance_updatable() {
     // Admin lowers it back to 5%
     client.set_quorum_percent(&admin, &5_u64);
     assert_eq!(client.get_quorum_percent(), 5_u64);
+}
+
+#[test]
+fn test_set_quorum_percent_requires_auth() {
+    let env = unauthorized_env();
+    let contract_id = env.register_contract(None, GovernanceContract);
+    let client = GovernanceContractClient::new(&env, &contract_id);
+
+    let admin = new_address(&env);
+    let config_key = soroban_sdk::Symbol::new(&env, "governance_config");
+    env.as_contract(&contract_id, || {
+        env.storage().persistent().set(
+            &config_key,
+            &GovernanceConfig {
+                platform_fee_percent: 50,
+                min_bounty_budget: 100,
+                max_bounty_budget: 1_000_000,
+                dispute_resolution_period: 604_800,
+                admin_address: admin.clone(),
+                last_updated: 0,
+            },
+        );
+    });
+
+    assert_requires_auth(|| {
+        client.set_quorum_percent(&admin, &20_u64);
+    });
 }
