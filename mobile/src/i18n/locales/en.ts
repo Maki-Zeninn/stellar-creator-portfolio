@@ -176,6 +176,20 @@ const en = {
     languageChanged: 'Language updated to {{language}}',
     rtlNote: 'Right-to-left layout enabled',
   },
+  home: {
+    greeting: 'Hello, Stellar Creator',
+    subtitle: 'Track trending portfolios, project demand, and secure your session with biometric access.',
+    useBiometrics: 'Use Biometrics',
+    refresh: 'Refresh',
+    audio: 'Audio',
+    multiSig: 'Multi-Sig',
+    peerTransfer: 'Peer Transfer',
+    trendingTitle: 'Trending portfolios',
+    trendingCaption: 'Selected from top user activity.',
+    cachedData: 'Cached data from {{time}}',
+    loadingAnalytics: 'Loading portfolio analytics…',
+    projectBountyFeed: 'Project & Bounty feed',
+  },
 };
 
 export default en;

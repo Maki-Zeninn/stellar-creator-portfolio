@@ -175,6 +175,20 @@ const es = {
     languageChanged: 'Idioma actualizado a {{language}}',
     rtlNote: 'Diseño de derecha a izquierda activado',
   },
+  home: {
+    greeting: 'Hola, creador de Stellar',
+    subtitle: 'Sigue los portafolios en tendencia, la demanda de proyectos y protege tu sesión con acceso biométrico.',
+    useBiometrics: 'Usar biometría',
+    refresh: 'Actualizar',
+    audio: 'Audio',
+    multiSig: 'Multifirma',
+    peerTransfer: 'Transferencia entre pares',
+    trendingTitle: 'Portafolios en tendencia',
+    trendingCaption: 'Seleccionados según la actividad principal de los usuarios.',
+    cachedData: 'Datos en caché de {{time}}',
+    loadingAnalytics: 'Cargando análisis del portafolio…',
+    projectBountyFeed: 'Proyectos y recompensas',
+  },
 };
 
 export default es;
