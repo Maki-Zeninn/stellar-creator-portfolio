@@ -88,6 +88,16 @@ export function useAnalyticsWorker() {
     }
 
     return () => {
+      // Reject all in-flight promises before terminating so callers never hang.
+      // Without this, any await run(...) that is still pending when the component
+      // unmounts would dangle forever — no error, no resolution, just a stale
+      // loading state stuck on screen.
+      const terminationError = new Error('Analytics worker terminated')
+      for (const { reject } of pendingRef.current.values()) {
+        reject(terminationError)
+      }
+      pendingRef.current.clear()
+
       worker.terminate()
       workerRef.current = null
     }
