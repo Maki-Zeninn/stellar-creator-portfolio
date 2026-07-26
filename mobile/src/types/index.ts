@@ -184,3 +184,36 @@ export interface QueuedOperation {
   /** Epoch ms — op is not retried until Date.now() >= nextRetryAt */
   nextRetryAt: number;
 }
+
+// ─── Multi-Sig Approval ───────────────────────────────────────────────────────
+
+export type MultiSigSignerStatus = 'pending' | 'approved';
+
+export interface MultiSigSigner {
+  id: string;
+  name: string;
+  role: 'Initiator' | 'Approver';
+  status: MultiSigSignerStatus;
+}
+
+export interface MultiSigTask {
+  id: string;
+  title: string;
+  amount: string;
+  description: string;
+  status: 'pending' | 'approved';
+  signers: MultiSigSigner[];
+  /** Signer IDs currently mid-way through a biometric confirmation prompt. */
+  queuedApprovals: string[];
+}
+
+export interface MultiSigState {
+  tasks: MultiSigTask[];
+  /**
+   * Prompts `signerId` for a real biometric confirmation and only flips
+   * their status to 'approved' on success. Throws if the confirmation
+   * fails or is cancelled — callers must not assume approval succeeded.
+   */
+  queueApproval: (taskId: string, signerId: string) => Promise<void>;
+  approveSigner: (taskId: string, signerId: string) => void;
+}
