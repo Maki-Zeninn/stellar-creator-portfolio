@@ -8,6 +8,9 @@ use soroban_sdk::{
 /// Challenge deposit in stroops (10 XLM).
 pub const CHALLENGE_DEPOSIT: i128 = 100_000_000;
 
+/// Maximum reputation bonus that can be awarded per bounty completion.
+pub const MAX_BONUS_PER_COMPLETION: i64 = 100;
+
 const SECONDS_PER_MONTH: u64 = 30 * 86400;
 const GRACE_PERIOD_MONTHS: u64 = 3;
 const DECAY_SCALE: i64 = 10_000;
@@ -88,6 +91,7 @@ pub enum InsightsError {
     ChallengeNotFound = 6,
     ChallengeNotPending = 7,
     InvalidRating = 8,
+    BonusExceedsLimit = 9,
 }
 
 #[contract]
@@ -260,7 +264,10 @@ impl StellarInsights {
         Self::load_challenge(&env, challenge_id)
     }
 
-    pub fn validate_epoch(env: Env, epoch: u64, data_hash: String) -> bool {
+    pub fn validate_epoch(env: Env, admin: Address, epoch: u64, data_hash: String) -> bool {
+        admin.require_auth();
+        Self::require_admin(&env, &admin);
+
         let current_timestamp = env.ledger().timestamp();
 
         match validate_epoch_range(epoch, current_timestamp) {
@@ -358,9 +365,11 @@ impl StellarInsights {
         true
     }
 
-    pub fn record_bounty_completion(env: Env, creator: Address, bonus: i64) -> bool {
-        creator.require_auth();
+    pub fn record_bounty_completion(env: Env, admin: Address, creator: Address, bonus: i64) -> bool {
+        admin.require_auth();
+        Self::require_admin(&env, &admin);
         assert!(bonus >= 0, "Bonus must be non-negative");
+        assert!(bonus <= MAX_BONUS_PER_COMPLETION, "Bonus exceeds maximum allowed per completion");
 
         let mut rep: CreatorReputation = env
             .storage()
