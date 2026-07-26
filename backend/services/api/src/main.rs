@@ -1,7 +1,7 @@
 use actix_cors::Cors;
 use actix_web::body::MessageBody;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
-use actix_web::{http, middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{http, middleware, web, App, HttpMessage, HttpResponse, HttpServer};
 use futures::future::{ok, Ready};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, postgres::PgPoolOptions};
@@ -15,8 +15,10 @@ mod cqrs_read;
 mod cqrs_write;
 mod database;
 mod event_indexer;
+mod metrics;
 mod ml;
 mod ml_handlers;
+mod muxed;
 mod reputation;
 mod verification_rewards;
 mod webhooks;
@@ -411,7 +413,10 @@ async fn ready(pool: web::Data<PgPool>) -> HttpResponse {
 }
 
 /// Create a new bounty
-async fn create_bounty(body: web::Json<database::BountyRequest>) -> HttpResponse {
+async fn create_bounty(
+    body: web::Json<database::BountyRequest>,
+    bm: web::Data<metrics::BusinessMetrics>,
+) -> HttpResponse {
     tracing::info!("Creating bounty: {:?}", body.title);
 
     let mut field_errors: Vec<FieldError> = Vec::new();
@@ -457,6 +462,9 @@ async fn create_bounty(body: web::Json<database::BountyRequest>) -> HttpResponse
     }
 
     let bounty = database::create_bounty(body.into_inner());
+    if let Some(ref counter) = bm.bounties_created {
+        counter.inc();
+    }
     let response: ApiResponse<serde_json::Value> = ApiResponse::ok(
         serde_json::json!({
             "bounty_id": bounty.id,
@@ -520,6 +528,7 @@ async fn get_bounty(path: web::Path<u64>) -> HttpResponse {
 async fn apply_for_bounty(
     path: web::Path<u64>,
     body: web::Json<database::BountyApplication>,
+    bm: web::Data<metrics::BusinessMetrics>,
 ) -> HttpResponse {
     let bounty_id = path.into_inner();
     tracing::info!("Applying for bounty {}: {}", bounty_id, body.freelancer);
@@ -557,6 +566,9 @@ async fn apply_for_bounty(
     let freelancer_addr = body.freelancer.clone();
     match database::apply_for_bounty(bounty_id, body.into_inner()) {
         Ok(()) => {
+            if let Some(ref counter) = bm.applications_submitted {
+                counter.inc();
+            }
             let response: ApiResponse<serde_json::Value> = ApiResponse::ok(
                 serde_json::json!({
                     "application_id": 1,
@@ -581,7 +593,11 @@ async fn apply_for_bounty(
 }
 
 /// Register freelancer
-async fn register_freelancer(body: web::Json<database::FreelancerRegistration>) -> HttpResponse {
+async fn register_freelancer(
+    req: actix_web::HttpRequest,
+    body: web::Json<database::FreelancerRegistration>,
+    bm: web::Data<metrics::BusinessMetrics>,
+) -> HttpResponse {
     tracing::info!("Registering freelancer: {}", body.name);
 
     let mut field_errors: Vec<FieldError> = Vec::new();
@@ -614,8 +630,18 @@ async fn register_freelancer(body: web::Json<database::FreelancerRegistration>) 
             .json(body);
     }
 
-    let freelancer =
-        database::register_freelancer(body.into_inner(), "wallet-address-placeholder".to_string());
+    // Extract the caller's wallet address from the JWT claims injected by JwtMiddleware.
+    // Claims::sub holds the wallet address for this authenticated request.
+    let wallet_address = req
+        .extensions()
+        .get::<auth::Claims>()
+        .map(|c| c.sub.clone())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let freelancer = database::register_freelancer(body.into_inner(), wallet_address);
+    if let Some(ref counter) = bm.freelancers_registered {
+        counter.inc();
+    }
     let response: ApiResponse<serde_json::Value> = ApiResponse::ok(
         serde_json::json!({
             "freelancer_id": freelancer.address,
@@ -994,12 +1020,18 @@ async fn get_escrow(path: web::Path<u64>) -> HttpResponse {
 }
 
 /// Release escrow funds
-async fn release_escrow(path: web::Path<u64>) -> HttpResponse {
+async fn release_escrow(
+    path: web::Path<u64>,
+    bm: web::Data<metrics::BusinessMetrics>,
+) -> HttpResponse {
     let escrow_id = path.into_inner();
     tracing::info!("Releasing escrow: {}", escrow_id);
 
     match database::release_escrow(escrow_id) {
         Some(escrow) => {
+            if let Some(ref counter) = bm.escrows_released {
+                counter.inc();
+            }
             let response: ApiResponse<serde_json::Value> = ApiResponse::ok(
                 serde_json::json!({
                     "id": escrow.id,
@@ -1023,7 +1055,10 @@ async fn release_escrow(path: web::Path<u64>) -> HttpResponse {
 }
 
 /// Create a new escrow
-async fn create_escrow(body: web::Json<database::EscrowCreateRequest>) -> HttpResponse {
+async fn create_escrow(
+    body: web::Json<database::EscrowCreateRequest>,
+    bm: web::Data<metrics::BusinessMetrics>,
+) -> HttpResponse {
     tracing::info!("Creating escrow for bounty: {}", body.bounty_id);
 
     let mut field_errors: Vec<FieldError> = Vec::new();
@@ -1069,6 +1104,10 @@ async fn create_escrow(body: web::Json<database::EscrowCreateRequest>) -> HttpRe
     }
 
     let escrow = database::create_escrow(body.into_inner());
+    let token = escrow.token.clone();
+    if let Some(ref counter_vec) = bm.escrows_deposits {
+        counter_vec.with_label_values(&[&token]).inc();
+    }
     let response: ApiResponse<serde_json::Value> = ApiResponse::ok(
         serde_json::json!({
             "escrowId": escrow.id.to_string(),
@@ -1397,6 +1436,18 @@ async fn main() -> std::io::Result<()> {
     tracing::info!("Server starting on {}:{}", host, port);
     let ws_limiter = websocket::WsConnectionLimiter::from_env();
 
+    let (prometheus_middleware, business_metrics) = metrics::setup_metrics()
+        .unwrap_or_else(|e| {
+            tracing::warn!("Prometheus metrics setup failed, continuing without metrics: {}", e);
+            // Fall back to a no-op middleware by re-running with a fresh registry.
+            // In practice the error is only possible if a metric name is duplicated,
+            // so we propagate it as a fatal startup error.
+            panic!("Cannot start without metrics: {}", e);
+        });
+    tracing::info!("Prometheus metrics initialised; /metrics endpoint active");
+
+    let business_metrics = web::Data::new(business_metrics);
+
     HttpServer::new(move || {
         let alert_store = web::Data::new(alerts::AlertStore::new());
         App::new()
@@ -1405,6 +1456,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(stellar_rpc_url.clone()))
             .app_data(ml_state.clone())
             .app_data(web::Data::new(ws_limiter.clone()))
+            .app_data(business_metrics.clone())
+            .wrap(prometheus_middleware.clone())
             .wrap(cors_middleware())
             .wrap(middleware::Logger::default())
             .wrap(middleware::NormalizePath::trim())
