@@ -175,6 +175,20 @@ const de = {
     languageChanged: 'Sprache aktualisiert: {{language}}',
     rtlNote: 'Rechts-nach-links-Layout aktiviert',
   },
+  home: {
+    greeting: 'Hallo, Stellar-Creator',
+    subtitle: 'Verfolge angesagte Portfolios und Projektnachfrage und sichere deine Sitzung per biometrischem Zugang.',
+    useBiometrics: 'Biometrie verwenden',
+    refresh: 'Aktualisieren',
+    audio: 'Audio',
+    multiSig: 'Multi-Signatur',
+    peerTransfer: 'Peer-Übertragung',
+    trendingTitle: 'Angesagte Portfolios',
+    trendingCaption: 'Ausgewählt nach der wichtigsten Nutzeraktivität.',
+    cachedData: 'Zwischengespeicherte Daten von {{time}}',
+    loadingAnalytics: 'Portfolio-Analysen werden geladen…',
+    projectBountyFeed: 'Projekt- und Bounty-Feed',
+  },
 };
 
 export default de;

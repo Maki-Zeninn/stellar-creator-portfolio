@@ -175,6 +175,20 @@ const ar = {
     languageChanged: 'تم تحديث اللغة إلى {{language}}',
     rtlNote: 'تم تفعيل تخطيط اليمين إلى اليسار',
   },
+  home: {
+    greeting: 'مرحبًا، صانع Stellar',
+    subtitle: 'تابع المحافظ الرائجة والطلب على المشاريع وأمّن جلستك عبر الدخول البيومتري.',
+    useBiometrics: 'استخدام البصمة',
+    refresh: 'تحديث',
+    audio: 'الصوت',
+    multiSig: 'التوقيع المتعدد',
+    peerTransfer: 'تحويل بين الأقران',
+    trendingTitle: 'المحافظ الرائجة',
+    trendingCaption: 'مختارة بناءً على أبرز نشاط للمستخدمين.',
+    cachedData: 'بيانات مخزّنة مؤقتًا من {{time}}',
+    loadingAnalytics: 'جارٍ تحميل تحليلات المحفظة…',
+    projectBountyFeed: 'موجز المشاريع والمكافآت',
+  },
 };
 
 export default ar;
