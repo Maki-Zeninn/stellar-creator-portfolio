@@ -12,6 +12,9 @@ use soroban_sdk::{
     contract, contractimpl, contracttype, Address, Env, Symbol,
 };
 
+#[cfg(test)]
+mod test;
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -62,6 +65,8 @@ pub struct ValuationResult {
 
 #[contracttype]
 enum DataKey {
+    /// Contract administrator, set once by `initialize`.
+    Admin,
     /// Address of the registered oracle contract.
     OracleAddress,
     /// Last accepted price snapshot.
@@ -79,19 +84,67 @@ pub struct OracleContract;
 impl OracleContract {
     // ── Admin ────────────────────────────────────────────────────────────────
 
-    /// Register the address of the upstream oracle contract.
+    /// Set the contract administrator. Callable once.
+    ///
+    /// Without this, `set_oracle`'s `admin` parameter was self-asserted: the
+    /// caller passed whichever address they controlled, `require_auth()`
+    /// confirmed only that they controlled *that* address, and nothing tied it
+    /// to any privileged role. Anyone could re-point the oracle.
+    pub fn initialize(env: Env, admin: Address) {
+        assert!(
+            !env.storage().persistent().has(&DataKey::Admin),
+            "Contract already initialized"
+        );
+        admin.require_auth();
+        env.storage().persistent().set(&DataKey::Admin, &admin);
+    }
+
+    /// Register the address of the upstream oracle contract. Admin-only.
     pub fn set_oracle(env: Env, admin: Address, oracle: Address) {
         admin.require_auth();
+        Self::require_admin(&env, &admin);
         env.storage()
             .persistent()
             .set(&DataKey::OracleAddress, &oracle);
+
+        env.events().publish(
+            (Symbol::new(&env, "oracle"), Symbol::new(&env, "oracle_set")),
+            oracle,
+        );
+    }
+
+    /// Return the registered oracle address, if one has been set.
+    pub fn get_oracle(env: Env) -> Option<Address> {
+        env.storage().persistent().get(&DataKey::OracleAddress)
+    }
+
+    /// Return the administrator, if the contract has been initialized.
+    pub fn get_admin(env: Env) -> Option<Address> {
+        env.storage().persistent().get(&DataKey::Admin)
     }
 
     // ── Price feed ───────────────────────────────────────────────────────────
 
-    /// Push a new price observation (called by the oracle aggregator).
+    /// Push a new price observation. Callable only by the registered oracle.
     pub fn update_price(env: Env, caller: Address, price_data: PriceData) {
         caller.require_auth();
+
+        // The check this contract is named for, and previously did not perform.
+        //
+        // `require_auth()` alone proves only that `caller` authorised the call —
+        // it says nothing about *who* `caller` is. Any address could satisfy it
+        // with its own signature and write the authoritative price.
+        //
+        // Rejecting when no oracle is registered matters as much as the
+        // comparison: with an empty LastPrice there is nothing to deviate from,
+        // so the first writer could set any positive price at all, and every
+        // subsequent update would then be anchored to that value.
+        let registered: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::OracleAddress)
+            .expect("No oracle registered; call set_oracle first");
+        assert!(caller == registered, "Caller is not the registered oracle");
 
         // Reject obviously anomalous prices (zero or negative).
         assert!(price_data.price_micro_usd > 0, "Price must be positive");
@@ -166,6 +219,22 @@ impl OracleContract {
             price_used: price_data.price_micro_usd,
             used_fallback,
         }
+    }
+
+    // ── Internal ─────────────────────────────────────────────────────────────
+
+    /// Assert that `caller` is the stored administrator.
+    ///
+    /// Panics when the contract has not been initialized, rather than treating
+    /// an absent admin as "anyone may proceed" — an uninitialized contract must
+    /// be closed, not open.
+    fn require_admin(env: &Env, caller: &Address) {
+        let admin: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Admin)
+            .expect("Contract not initialized; call initialize first");
+        assert!(*caller == admin, "Caller is not the admin");
     }
 }
 
