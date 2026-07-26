@@ -424,7 +424,17 @@ impl BountyContract {
         true
     }
 
-    pub fn complete_bounty(env: Env, bounty_id: u64) -> bool {
+    /// Approve completion and release payment.
+    ///
+    /// `approvers` names the multi-sig signers authorising this call. It is
+    /// ignored for bounties below the multi-sig threshold — pass an empty
+    /// `Vec` for those. Above the threshold it must contain at least
+    /// `required` distinct addresses, all drawn from the configured signer
+    /// set, and each must have authorised the invocation.
+    ///
+    /// Any `required`-sized subset satisfies the policy; the signers no longer
+    /// have to be the first `required` entries in the stored order (#1113).
+    pub fn complete_bounty(env: Env, bounty_id: u64, approvers: Vec<Address>) -> bool {
         let bounty_key = (Symbol::new(&env, "bounty"), bounty_id);
         let mut bounty = env
             .storage()
@@ -457,14 +467,44 @@ impl BountyContract {
                 .get::<DataKey, u32>(&DataKey::MultisigRequired)
                 .unwrap_or(2);
 
-            // Collect auth from each signer; count how many authorised.
+            // #1113: the approving subset is named by the caller rather than
+            // inferred by walking `signers` in stored order.
+            //
+            // `require_auth()` panics when the given address did not authorise
+            // the invocation — it cannot be used as a boolean test. The previous
+            // loop called it unconditionally on the first `required` entries, so
+            // it demanded that specific prefix rather than any M of N: a
+            // legitimate quorum that happened not to be the first M in the list
+            // panicked on an earlier signer who was never involved.
+            //
+            // Naming the approvers up front means every require_auth() below is
+            // expected to succeed, which is the only way to use it correctly.
+            assert!(
+                approvers.len() as u32 >= required,
+                "Insufficient multi-sig authorisations for high-value bounty"
+            );
+
             let mut auth_count: u32 = 0;
-            for signer in signers.iter() {
-                signer.require_auth();
-                auth_count += 1;
-                if auth_count >= required {
-                    break;
+            for (i, approver) in approvers.iter().enumerate() {
+                // Every approver must belong to the configured signer set,
+                // otherwise any address could pad the quorum with its own
+                // signature.
+                assert!(
+                    signers.contains(&approver),
+                    "Approver is not a configured multi-sig signer"
+                );
+
+                // Without this, [signer_a, signer_a, signer_a] would satisfy a
+                // 3-of-5 policy with one key — turning M-of-N into 1-of-N.
+                for j in (i + 1)..(approvers.len() as usize) {
+                    assert!(
+                        approver != approvers.get(j as u32).unwrap(),
+                        "Duplicate approver in multi-sig set"
+                    );
                 }
+
+                approver.require_auth();
+                auth_count += 1;
             }
 
             assert!(
@@ -779,11 +819,195 @@ mod tests {
         contract.submit_completion(&bounty_id, &freelancer);
 
         // With mock_all_auths, all require_auth calls pass — completion succeeds
-        let result = contract.complete_bounty(&bounty_id);
+        let mut approvers = soroban_sdk::Vec::new(&env);
+        approvers.push_back(signer1.clone());
+        approvers.push_back(signer2.clone());
+        let result = contract.complete_bounty(&bounty_id, &approvers);
         assert!(result);
 
         let bounty = contract.get_bounty(&bounty_id);
         assert_eq!(bounty.status, BountyStatus::Completed);
+    }
+
+    /// #1113: the regression the old implementation could not pass.
+    ///
+    /// A 2-of-3 policy approved by signers 2 and 3 — a legitimate quorum that
+    /// is not the first two entries in the stored list. The previous loop
+    /// walked `signers` in order and called `require_auth()` unconditionally,
+    /// so it panicked on signer 1, who was never involved.
+    #[test]
+    fn test_multisig_accepts_non_prefix_subset() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+
+        let admin = Address::generate(&env);
+        let creator = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let signer1 = Address::generate(&env);
+        let signer2 = Address::generate(&env);
+        let signer3 = Address::generate(&env);
+
+        contract.initialize(&admin);
+        let mut signers = soroban_sdk::Vec::new(&env);
+        signers.push_back(signer1.clone());
+        signers.push_back(signer2.clone());
+        signers.push_back(signer3.clone());
+        contract.set_multisig_signers(&admin, &signers, &2u32);
+
+        let bounty_id = contract.create_bounty(
+            &creator,
+            &String::from_str(&env, "High-Value Bounty"),
+            &String::from_str(&env, "Approved by a non-prefix quorum"),
+            &MULTISIG_THRESHOLD,
+            &100u64,
+        );
+        let app_id = contract.apply_for_bounty(
+            &bounty_id,
+            &freelancer,
+            &String::from_str(&env, "I can do this"),
+            &MULTISIG_THRESHOLD,
+            &30u64,
+        );
+        contract.select_freelancer(&bounty_id, &app_id);
+        contract.submit_completion(&bounty_id, &freelancer);
+
+        // Signers 2 and 3 — deliberately skipping the first entry.
+        let mut approvers = soroban_sdk::Vec::new(&env);
+        approvers.push_back(signer2.clone());
+        approvers.push_back(signer3.clone());
+
+        assert!(contract.complete_bounty(&bounty_id, &approvers));
+        assert_eq!(contract.get_bounty(&bounty_id).status, BountyStatus::Completed);
+    }
+
+    #[test]
+    #[should_panic(expected = "Duplicate approver")]
+    fn test_multisig_rejects_duplicate_approver() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+
+        let admin = Address::generate(&env);
+        let creator = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let signer1 = Address::generate(&env);
+        let signer2 = Address::generate(&env);
+
+        contract.initialize(&admin);
+        let mut signers = soroban_sdk::Vec::new(&env);
+        signers.push_back(signer1.clone());
+        signers.push_back(signer2.clone());
+        contract.set_multisig_signers(&admin, &signers, &2u32);
+
+        let bounty_id = contract.create_bounty(
+            &creator,
+            &String::from_str(&env, "High-Value Bounty"),
+            &String::from_str(&env, "Duplicate approver"),
+            &MULTISIG_THRESHOLD,
+            &100u64,
+        );
+        let app_id = contract.apply_for_bounty(
+            &bounty_id,
+            &freelancer,
+            &String::from_str(&env, "I can do this"),
+            &MULTISIG_THRESHOLD,
+            &30u64,
+        );
+        contract.select_freelancer(&bounty_id, &app_id);
+        contract.submit_completion(&bounty_id, &freelancer);
+
+        // Without the duplicate check this satisfies 2-of-2 with a single key,
+        // collapsing M-of-N to 1-of-N.
+        let mut approvers = soroban_sdk::Vec::new(&env);
+        approvers.push_back(signer1.clone());
+        approvers.push_back(signer1.clone());
+        contract.complete_bounty(&bounty_id, &approvers);
+    }
+
+    #[test]
+    #[should_panic(expected = "not a configured multi-sig signer")]
+    fn test_multisig_rejects_outsider_approver() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+
+        let admin = Address::generate(&env);
+        let creator = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let signer1 = Address::generate(&env);
+        let signer2 = Address::generate(&env);
+
+        contract.initialize(&admin);
+        let mut signers = soroban_sdk::Vec::new(&env);
+        signers.push_back(signer1.clone());
+        signers.push_back(signer2.clone());
+        contract.set_multisig_signers(&admin, &signers, &2u32);
+
+        let bounty_id = contract.create_bounty(
+            &creator,
+            &String::from_str(&env, "High-Value Bounty"),
+            &String::from_str(&env, "Outsider approver"),
+            &MULTISIG_THRESHOLD,
+            &100u64,
+        );
+        let app_id = contract.apply_for_bounty(
+            &bounty_id,
+            &freelancer,
+            &String::from_str(&env, "I can do this"),
+            &MULTISIG_THRESHOLD,
+            &30u64,
+        );
+        contract.select_freelancer(&bounty_id, &app_id);
+        contract.submit_completion(&bounty_id, &freelancer);
+
+        // An arbitrary address must not be able to pad the quorum with its own
+        // signature.
+        let mut approvers = soroban_sdk::Vec::new(&env);
+        approvers.push_back(signer1.clone());
+        approvers.push_back(Address::generate(&env));
+        contract.complete_bounty(&bounty_id, &approvers);
+    }
+
+    #[test]
+    #[should_panic(expected = "Insufficient multi-sig authorisations")]
+    fn test_multisig_rejects_too_few_approvers() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+
+        let admin = Address::generate(&env);
+        let creator = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let signer1 = Address::generate(&env);
+        let signer2 = Address::generate(&env);
+
+        contract.initialize(&admin);
+        let mut signers = soroban_sdk::Vec::new(&env);
+        signers.push_back(signer1.clone());
+        signers.push_back(signer2.clone());
+        contract.set_multisig_signers(&admin, &signers, &2u32);
+
+        let bounty_id = contract.create_bounty(
+            &creator,
+            &String::from_str(&env, "High-Value Bounty"),
+            &String::from_str(&env, "Too few approvers"),
+            &MULTISIG_THRESHOLD,
+            &100u64,
+        );
+        let app_id = contract.apply_for_bounty(
+            &bounty_id,
+            &freelancer,
+            &String::from_str(&env, "I can do this"),
+            &MULTISIG_THRESHOLD,
+            &30u64,
+        );
+        contract.select_freelancer(&bounty_id, &app_id);
+        contract.submit_completion(&bounty_id, &freelancer);
+
+        let mut approvers = soroban_sdk::Vec::new(&env);
+        approvers.push_back(signer1.clone());
+        contract.complete_bounty(&bounty_id, &approvers);
     }
 
     #[test]
@@ -814,7 +1038,8 @@ mod tests {
 
         contract.select_freelancer(&bounty_id, &app_id);
         contract.submit_completion(&bounty_id, &freelancer);
-        let result = contract.complete_bounty(&bounty_id);
+        // Below the threshold, so `approvers` is ignored — pass an empty Vec.
+        let result = contract.complete_bounty(&bounty_id, &soroban_sdk::Vec::new(&env));
         assert!(result);
     }
 
