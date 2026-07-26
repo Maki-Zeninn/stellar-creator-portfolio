@@ -870,4 +870,17 @@ mod tests {
         // Attacker authenticates as themselves, but is not the stored admin.
         contract.set_escrow_contract(&attacker, &escrow);
     }
+
+    #[test]
+    fn test_set_admin_requires_auth() {
+        use stellar_contract_test_utils::{assert_requires_auth, new_address, unauthorized_env};
+
+        let env = unauthorized_env();
+        let contract = BountyContractClient::new(&env, &env.register_contract(None, BountyContract));
+        let admin = new_address(&env);
+
+        assert_requires_auth(|| {
+            contract.set_admin(&admin);
+        });
+    }
 }

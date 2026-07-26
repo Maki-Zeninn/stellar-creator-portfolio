@@ -167,7 +167,7 @@ impl GovernanceContract {
 
         let proposal = Proposal {
             id: proposal_id,
-            proposer,
+            proposer: proposer.clone(),
             title,
             description,
             yes_votes: 0,
