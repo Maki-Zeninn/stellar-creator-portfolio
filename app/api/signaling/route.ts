@@ -15,6 +15,44 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
+import { getServerSession } from '@/lib/auth/auth';
+
+const MAX_PEERS_PER_ROOM = parseInt(process.env.MAX_PEERS_PER_ROOM ?? '2', 10);
+
+// Tracks which authenticated user owns a given peerId, and which
+// authenticated users are members of a given room. Both are populated
+// on first use (first-come, first-served up to MAX_PEERS_PER_ROOM) since
+// there is no separate call/stream-invite record in this codebase to check
+// membership against — this is a real, self-contained substitute: it stops
+// an unauthenticated caller from reading/writing at all, stops one
+// authenticated user from impersonating another peerId, and caps how many
+// distinct users can ever inject into a guessed/observed roomId.
+const peerOwners = new Map<string, { userId: string; lastSeen: number }>(); // peerId -> owner
+const roomMembers = new Map<string, Map<string, number>>(); // roomId -> userId -> lastSeen
+
+/** Registers (or verifies) that `userId` owns `peerId`. Returns false on conflict. */
+function claimPeerId(peerId: string, userId: string): boolean {
+  const owner = peerOwners.get(peerId);
+  if (owner === undefined) {
+    peerOwners.set(peerId, { userId, lastSeen: Date.now() });
+    return true;
+  }
+  if (owner.userId !== userId) return false;
+  owner.lastSeen = Date.now();
+  return true;
+}
+
+/** Registers (or verifies) `userId` as a member of `roomId`. Returns false if the room is full. */
+function claimRoomMembership(roomId: string, userId: string): boolean {
+  let members = roomMembers.get(roomId);
+  if (!members) {
+    members = new Map();
+    roomMembers.set(roomId, members);
+  }
+  if (!members.has(userId) && members.size >= MAX_PEERS_PER_ROOM) return false;
+  members.set(userId, Date.now());
+  return true;
+}
 
 const TURN_SECRET = process.env.TURN_SECRET ?? 'insecure-dev-secret';
 const TURN_HOST = process.env.TURN_HOST ?? 'turn.example.com';
@@ -45,6 +83,15 @@ setInterval(() => {
     const fresh = entries.filter((e) => e.ts > cutoff);
     if (fresh.length === 0) signalingStore.delete(key);
     else signalingStore.set(key, fresh);
+  }
+  for (const [peerId, owner] of peerOwners) {
+    if (owner.lastSeen <= cutoff) peerOwners.delete(peerId);
+  }
+  for (const [roomId, members] of roomMembers) {
+    for (const [userId, lastSeen] of members) {
+      if (lastSeen <= cutoff) members.delete(userId);
+    }
+    if (members.size === 0) roomMembers.delete(roomId);
   }
 }, 60_000).unref?.();
 
@@ -77,11 +124,30 @@ function generateIceServers(peerId: string) {
  * Polls for inbound signaling messages (HTTP fallback for mobile clients).
  */
 export async function GET(req: NextRequest) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const userId = session.user.id;
+
   const roomId = req.nextUrl.searchParams.get('roomId');
   const sinceParam = req.nextUrl.searchParams.get('since');
   const peerIdParam = req.nextUrl.searchParams.get('peerId');
 
   if (roomId && peerIdParam) {
+    if (!claimPeerId(peerIdParam, userId)) {
+      return NextResponse.json(
+        { error: 'peerId is already registered to another user' },
+        { status: 403 },
+      );
+    }
+    if (!claimRoomMembership(roomId, userId)) {
+      return NextResponse.json(
+        { error: 'Room is full' },
+        { status: 403 },
+      );
+    }
+
     const since = sinceParam ? Number(sinceParam) : 0;
     const key = `${roomId}:${peerIdParam}`;
     const entries = signalingStore.get(key) ?? [];
@@ -90,8 +156,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ messages });
   }
 
-  const peerId =
-    peerIdParam ?? `web-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const peerId = peerIdParam ?? `${userId}-${Date.now().toString(36)}`;
+  if (!claimPeerId(peerId, userId)) {
+    return NextResponse.json(
+      { error: 'peerId is already registered to another user' },
+      { status: 403 },
+    );
+  }
 
   return NextResponse.json({
     iceServers: generateIceServers(peerId),
@@ -115,6 +186,12 @@ export async function GET(req: NextRequest) {
  *   to       string?  Target peer ID (optional, broadcasts if omitted)
  */
 export async function POST(req: NextRequest) {
+  const session = await getServerSession();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const userId = session.user.id;
+
   try {
     const body = await req.json();
     const { roomId, peerId, type, sdp, candidate, to, amount, asset } = body;
@@ -123,6 +200,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields: roomId, peerId, type' },
         { status: 400 },
+      );
+    }
+
+    if (!claimPeerId(peerId, userId)) {
+      return NextResponse.json(
+        { error: 'peerId is already registered to another user' },
+        { status: 403 },
+      );
+    }
+    if (!claimRoomMembership(roomId, userId)) {
+      return NextResponse.json(
+        { error: 'Room is full' },
+        { status: 403 },
       );
     }
 
