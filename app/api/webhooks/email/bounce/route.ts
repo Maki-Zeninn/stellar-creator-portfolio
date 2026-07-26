@@ -67,18 +67,29 @@ export async function POST(request: NextRequest) {
           });
         } else if (event.bounce_type === 'temporary' || event.bounce_type === 'soft') {
           const log = await prisma.emailDeliveryLog.findFirst({
-            where: { toEmail: email },
+            where: {
+              toEmail: email,
+              templateKey: 'bounce',
+            },
             orderBy: { createdAt: 'desc' },
           });
 
-          if (log && log.payload && typeof log.payload === 'object' && 'softBounceCount' in log.payload) {
-            const count = (log.payload as any).softBounceCount + 1;
-            if (count >= 3) {
-              await prisma.user.update({
-                where: { id: user.id },
-                data: { emailBounced: true },
-              });
-            }
+          let count = 1;
+          if (
+            log &&
+            log.payload &&
+            typeof log.payload === 'object' &&
+            'softBounceCount' in log.payload &&
+            typeof (log.payload as { softBounceCount: unknown }).softBounceCount === 'number'
+          ) {
+            count = (log.payload as { softBounceCount: number }).softBounceCount + 1;
+          }
+
+          if (count >= 3) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { emailBounced: true },
+            });
           }
 
           await prisma.emailDeliveryLog.create({
@@ -92,7 +103,7 @@ export async function POST(request: NextRequest) {
               provider: 'webhook',
               providerMessageId: event.message_id,
               errorMessage: `Soft bounce: ${event.diagnostic_code || 'unknown'}`,
-              payload: { ...event, softBounceCount: 1 },
+              payload: { ...event, softBounceCount: count },
             },
           });
         }
