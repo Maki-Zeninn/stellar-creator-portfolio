@@ -58,6 +58,7 @@ export function useWebSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectCountRef = useRef(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intentionalCloseRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
 
   // Store callbacks in refs so connect() doesn't need to depend on them
@@ -110,6 +111,12 @@ export function useWebSocket({
           message: 'WebSocket disconnected',
         });
 
+        // Skip reconnect if the close was intentional (e.g. component unmount
+        // or an explicit disconnect() call) to avoid zombie connections.
+        if (intentionalCloseRef.current) {
+          return;
+        }
+
         // Attempt reconnection
         if (reconnectCountRef.current < reconnectAttempts) {
           reconnectCountRef.current += 1;
@@ -139,6 +146,8 @@ export function useWebSocket({
   );
 
   const disconnect = useCallback(() => {
+    // Mark as intentional so the onclose handler skips the reconnect branch.
+    intentionalCloseRef.current = true;
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
