@@ -86,6 +86,13 @@ pub fn create_escrow(request: EscrowCreateRequest) -> Escrow {
     let mut store = escrow_store().lock().unwrap();
     let escrow_id = store.iter().map(|e| e.id).max().unwrap_or(0) + 1;
     let escrow = Escrow {
+    // Generate a unique escrow ID by hashing a v4 UUID down to a u64.
+    // This avoids ID collisions across concurrent escrow creation calls
+    // that would otherwise cause fund-misdirection on release/refund/dispute.
+    let raw = uuid::Uuid::new_v4();
+    let bytes = raw.as_u128().to_le_bytes();
+    let escrow_id = u64::from_le_bytes(bytes[..8].try_into().unwrap());
+    Escrow {
         id: escrow_id,
         bounty_id: request.bounty_id,
         payer_address: request.payer_address,

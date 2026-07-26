@@ -10,6 +10,30 @@ pub enum StorageKey {
     LpBalance(Address),
 }
 
+/// Permanently-locked LP amount minted on the first deposit (Uniswap V2's
+/// approach). It's included in `TotalLp` but never credited to any
+/// `LpBalance`, so it can never be withdrawn — this guarantees the pool can
+/// never be fully drained back to `total_lp == 0` / `reserves == 0`, which
+/// would otherwise let anyone re-trigger the first-deposit pricing branch.
+const MINIMUM_LIQUIDITY: i128 = 1000;
+
+/// Integer square root (Babylonian method). Used so first-deposit LP minting
+/// follows the standard `sqrt(x * y)` invariant instead of a naive average,
+/// which has no relationship to the deposited value ratio and lets a lopsided
+/// first deposit set an arbitrary implied price.
+fn isqrt(y: i128) -> i128 {
+    if y < 2 {
+        return y;
+    }
+    let mut x = y;
+    let mut z = (y + 1) / 2;
+    while z < x {
+        x = z;
+        z = (y / z + x) / 2;
+    }
+    x
+}
+
 #[contract]
 pub struct AmmContract;
 
@@ -28,17 +52,22 @@ impl AmmContract {
         let reserves_y: i128 = env.storage().instance().get(&StorageKey::Reserves(key_y.clone())).unwrap_or(0);
         let total_lp: i128 = env.storage().instance().get(&StorageKey::TotalLp).unwrap_or(0);
 
-        let lp_minted: i128 = if total_lp == 0 || reserves_x == 0 || reserves_y == 0 {
-            (amount_x + amount_y) / 2
+        let is_first_deposit = total_lp == 0 || reserves_x == 0 || reserves_y == 0;
+
+        let (lp_minted, total_lp_increase): (i128, i128) = if is_first_deposit {
+            let liquidity = isqrt(amount_x * amount_y);
+            assert!(liquidity > MINIMUM_LIQUIDITY, "insufficient initial liquidity");
+            (liquidity - MINIMUM_LIQUIDITY, liquidity)
         } else {
             let share_x = amount_x * total_lp / reserves_x;
             let share_y = amount_y * total_lp / reserves_y;
-            core::cmp::min(share_x, share_y)
+            let minted = core::cmp::min(share_x, share_y);
+            (minted, minted)
         };
 
         env.storage().instance().set(&StorageKey::Reserves(key_x), &(reserves_x + amount_x));
         env.storage().instance().set(&StorageKey::Reserves(key_y), &(reserves_y + amount_y));
-        env.storage().instance().set(&StorageKey::TotalLp, &(total_lp + lp_minted));
+        env.storage().instance().set(&StorageKey::TotalLp, &(total_lp + total_lp_increase));
 
         let prev_lp: i128 = env.storage().instance().get(&StorageKey::LpBalance(user.clone())).unwrap_or(0);
         env.storage().instance().set(&StorageKey::LpBalance(user), &(prev_lp + lp_minted));
@@ -105,11 +134,73 @@ mod tests {
         let contract_id = env.register_contract(None, AmmContract);
         let client = AmmContractClient::new(&env, &contract_id);
 
+        // Amounts must comfortably clear MINIMUM_LIQUIDITY (1000) now that
+        // the first deposit is priced via sqrt(x*y) with a locked floor.
         let user = Address::generate(&env);
-        let lp = client.add_liquidity(&user, &100i128, &100i128);
+        let lp = client.add_liquidity(&user, &100_000i128, &100_000i128);
         assert!(lp > 0);
 
         let dy = client.swap_x_for_y(&user, &10i128, &0i128);
         assert!(dy > 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "insufficient initial liquidity")]
+    fn lopsided_first_deposit_cannot_mint_disproportionate_lp_share() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register_contract(None, AmmContract);
+        let client = AmmContractClient::new(&env, &contract_id);
+
+        let attacker = Address::generate(&env);
+        // Extremely lopsided first deposit: 1 unit of X against 1_000_000 of Y.
+        // Under the old `(amount_x + amount_y) / 2` formula this minted
+        // ~500_000 LP to the attacker for essentially no real X-side value,
+        // setting an arbitrary implied price for the pool. Under sqrt(x*y) =
+        // sqrt(1_000_000) = 1_000, which does not clear the locked
+        // MINIMUM_LIQUIDITY floor, so the deposit is rejected outright
+        // instead of minting a disproportionate LP share.
+        client.add_liquidity(&attacker, &1i128, &1_000_000i128);
+    }
+
+    #[test]
+    fn first_deposit_mints_sqrt_of_product_minus_minimum_liquidity() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register_contract(None, AmmContract);
+        let client = AmmContractClient::new(&env, &contract_id);
+
+        let user = Address::generate(&env);
+        let lp = client.add_liquidity(&user, &10_000i128, &10_000i128);
+
+        // sqrt(10_000 * 10_000) = 10_000, minus the 1_000 locked MINIMUM_LIQUIDITY.
+        assert_eq!(lp, 9_000);
+    }
+
+    #[test]
+    fn pool_can_never_be_fully_drained_back_to_zero() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register_contract(None, AmmContract);
+        let client = AmmContractClient::new(&env, &contract_id);
+
+        let user = Address::generate(&env);
+        let lp = client.add_liquidity(&user, &10_000i128, &10_000i128);
+
+        // Withdraw every LP token the user actually owns.
+        let (out_x, out_y) = client.remove_liquidity(&user, &lp);
+        assert!(out_x > 0 && out_y > 0);
+
+        // The locked MINIMUM_LIQUIDITY portion was never credited to `user`,
+        // so total_lp can never return to zero even after every real
+        // depositor fully withdraws -- the first-deposit branch can't be
+        // re-triggered by draining the pool.
+        let total_lp_after: i128 = env.as_contract(&contract_id, || {
+            env.storage()
+                .instance()
+                .get(&StorageKey::TotalLp)
+                .unwrap_or(0)
+        });
+        assert_eq!(total_lp_after, MINIMUM_LIQUIDITY);
     }
 }
