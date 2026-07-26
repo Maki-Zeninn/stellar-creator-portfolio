@@ -164,6 +164,13 @@ describe('buildIceServers()', () => {
 
 // ── API route tests ──────────────────────────────────────────────────────────
 
+// The route now requires an authenticated session (#1124) -- mock a signed-in
+// user so these tests exercise the actual relay/credential logic rather than
+// hitting the 401 path.
+vi.mock('@/lib/auth/auth', () => ({
+  getServerSession: async () => ({ user: { id: 'test-user-1' } }),
+}));
+
 // Mock Next.js modules for route testing
 vi.mock('next/server', () => ({
   NextRequest: class {
