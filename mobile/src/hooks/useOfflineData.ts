@@ -98,8 +98,7 @@ export function useOfflineData<T>(
     mounted.current = true;
     load();
     return () => { mounted.current = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cacheKey, isOnline]);
+  }, [cacheKey, isOnline, load]);  // Include fetcher (via load) so new fetcher closures re-trigger
 
   // Refresh queue counts whenever connectivity changes
   useEffect(() => {

@@ -34,6 +34,11 @@ export async function trimVideo(
     throw new Error('StellarFFmpeg native bridge module is not linked or available');
   }
 
+  // Validate trim range: end must be after start (Issue #1091)
+  if (endMs <= startMs) {
+    throw new Error('End time must be after start time');
+  }
+
   // Force maximum clip duration of 60 seconds on trim invocation
   const trimDuration = endMs - startMs;
   if (trimDuration > 60000) {
