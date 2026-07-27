@@ -45,7 +45,8 @@ impl StorageContract {
     }
 
     /// Persist a bounty state value and bump TTL.
-    pub fn set_bounty_state(env: Env, bounty_id: u64, state: u32) {
+    pub fn set_bounty_state(env: Env, account: Address, bounty_id: u64, state: u32) {
+        account.require_auth();
         let key = StorageKey::BountyState(bounty_id);
         env.storage().persistent().set(&key, &state);
         Self::bump_persistent(&env, &key);
@@ -132,9 +133,20 @@ mod tests {
         let contract_id = env.register_contract(None, StorageContract);
         let client = StorageContractClient::new(&env, &contract_id);
 
-        client.set_bounty_state(&1u64, &2u32);
+        let owner = Address::generate(&env);
+        client.set_bounty_state(&owner, &1u64, &2u32);
         let state = client.get_bounty_state(&1u64).expect("state should exist");
         assert_eq!(state, 2u32);
+    }
+
+    #[test]
+    fn set_bounty_state_requires_auth() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, StorageContract);
+        let client = StorageContractClient::new(&env, &contract_id);
+        let owner = Address::generate(&env);
+        let result = client.try_set_bounty_state(&owner, &1u64, &2u32);
+        assert!(result.is_err());
     }
 
     #[test]

@@ -64,6 +64,10 @@ impl DisputeContract {
     /// Set the governance address (called once at deploy time).
     pub fn initialize(env: Env, governance: Address) {
         governance.require_auth();
+        assert!(
+            !env.storage().instance().has(&GOVERNANCE),
+            "Already initialized"
+        );
         env.storage().instance().set(&GOVERNANCE, &governance);
     }
 
@@ -394,5 +398,15 @@ mod tests {
 
         client.remove_arbitrator(&arb);
         assert_eq!(client.get_arbitrator_pool().len(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Already initialized")]
+    fn test_double_initialize_panics() {
+        let (env, client) = setup();
+        let gov = Address::generate(&env);
+        client.initialize(&gov);
+        let other = Address::generate(&env);
+        client.initialize(&other);
     }
 }

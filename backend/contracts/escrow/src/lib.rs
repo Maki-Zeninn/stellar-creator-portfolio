@@ -177,6 +177,7 @@ impl EscrowContract {
     ) -> u64 {
         payer.require_auth();
         assert!(amount > 0, "Amount must be positive");
+        let _guard = ReentrancyGuard::acquire(&env);
 
         // #179: Validate token implements the SEP-41 interface before accepting funds.
         // Calling balance() will trap if `token` is not a valid token contract,
@@ -355,6 +356,7 @@ impl EscrowContract {
     /// Refund an expired bounty's escrow to the payer. Called by the bounty contract when expiring.
     pub fn refund_expired_bounty(env: Env, bounty_id: u64, bounty_contract: Address) -> bool {
         bounty_contract.require_auth();
+        let _guard = ReentrancyGuard::acquire(&env);
 
         let escrow_id = Self::get_escrow_id_for_bounty(env.clone(), bounty_id);
         assert!(escrow_id > 0, "No escrow for bounty");
@@ -423,6 +425,7 @@ impl EscrowContract {
         release_to_payee: bool,
     ) -> bool {
         admin.require_auth();
+        let _guard = ReentrancyGuard::acquire(&env);
 
         // Verify caller is the stored platform admin
         let admin_key = Symbol::new(&env, "platform_admin");
@@ -495,6 +498,8 @@ impl EscrowContract {
     ///   - escrow is not in Disputed state
     ///   - the expiry window has not yet elapsed
     pub fn resolve_expired_dispute(env: Env, escrow_id: u64) -> bool {
+        let _guard = ReentrancyGuard::acquire(&env);
+
         let key = (Symbol::new(&env, "escrow"), escrow_id);
         let mut escrow = env
             .storage()
@@ -984,6 +989,7 @@ impl EscrowContract {
     /// ensuring payers can always retrieve their funds.
     pub fn withdraw_yield(env: Env, admin: Address, escrow_id: u64) -> i128 {
         admin.require_auth();
+        let _guard = ReentrancyGuard::acquire(&env);
 
         let stored_admin: Address = env
             .storage()
