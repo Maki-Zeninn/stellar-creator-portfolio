@@ -120,6 +120,38 @@ impl AmmContract {
 
         dy
     }
+
+    /// Swap token Y for token X using the constant-product formula (x * y = k).
+    ///
+    /// Mirrors `swap_x_for_y` in the opposite direction. The same 0.3% fee
+    /// is applied to the input amount before computing the output.
+    ///
+    /// # Arguments
+    /// * `dy`     – amount of token Y being sold into the pool.
+    /// * `min_dx` – minimum amount of token X the caller will accept
+    ///              (slippage guard; panics if output falls below this).
+    ///
+    /// Returns the amount of token X sent to the caller.
+    pub fn swap_y_for_x(env: Env, user: Address, dy: i128, min_dx: i128) -> i128 {
+        user.require_auth();
+        assert!(dy > 0, "invalid amount");
+
+        let key_x = symbol_short!("x");
+        let key_y = symbol_short!("y");
+        let reserves_x: i128 = env.storage().instance().get(&StorageKey::Reserves(key_x.clone())).unwrap_or(0);
+        let reserves_y: i128 = env.storage().instance().get(&StorageKey::Reserves(key_y.clone())).unwrap_or(0);
+        assert!(reserves_x > 0 && reserves_y > 0, "empty pool");
+
+        // Apply the 0.3% fee to the Y input before computing output X.
+        let dy_with_fee = dy * 997;
+        let dx = dy_with_fee * reserves_x / (reserves_y * 1000 + dy_with_fee);
+        assert!(dx >= min_dx && dx > 0, "slippage or zero output");
+
+        env.storage().instance().set(&StorageKey::Reserves(key_y), &(reserves_y + dy));
+        env.storage().instance().set(&StorageKey::Reserves(key_x), &(reserves_x - dx));
+
+        dx
+    }
 }
 
 #[cfg(test)]
@@ -202,5 +234,35 @@ mod tests {
                 .unwrap_or(0)
         });
         assert_eq!(total_lp_after, MINIMUM_LIQUIDITY);
+    }
+
+    #[test]
+    fn swap_y_for_x_works_and_is_symmetric_to_x_for_y() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register_contract(None, AmmContract);
+        let client = AmmContractClient::new(&env, &contract_id);
+
+        let user = Address::generate(&env);
+        client.add_liquidity(&user, &100_000i128, &100_000i128);
+
+        // Sell Y into the pool, receive X back.
+        let dx = client.swap_y_for_x(&user, &1_000i128, &0i128);
+        assert!(dx > 0, "swap_y_for_x must return a positive amount of X");
+    }
+
+    #[test]
+    #[should_panic(expected = "slippage or zero output")]
+    fn swap_y_for_x_respects_min_dx_slippage_guard() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register_contract(None, AmmContract);
+        let client = AmmContractClient::new(&env, &contract_id);
+
+        let user = Address::generate(&env);
+        client.add_liquidity(&user, &100_000i128, &100_000i128);
+
+        // min_dx set impossibly high — must panic.
+        client.swap_y_for_x(&user, &1_000i128, &i128::MAX);
     }
 }
