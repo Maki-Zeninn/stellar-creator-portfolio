@@ -81,6 +81,10 @@ impl EscrowContract {
         initial_tokens: Vec<TokenInfo>,
     ) {
         governance.require_auth();
+        assert!(
+            !env.storage().instance().has(&DataKey::Governance),
+            "Already initialized"
+        );
         env.storage().instance().set(&DataKey::Governance, &governance);
         env.storage().persistent().set(&DataKey::TokenWhitelist, &initial_tokens);
         Self::bump_persistent(&env, &DataKey::TokenWhitelist);
@@ -429,5 +433,15 @@ mod tests {
         let info = info.unwrap();
         assert_eq!(info.symbol, Symbol::new(&env, "USDC"));
         assert_eq!(info.decimals, 7);
+    }
+
+    #[test]
+    #[should_panic(expected = "Already initialized")]
+    fn double_initialize_panics() {
+        let (env, gov, client) = setup();
+        let initial = soroban_sdk::vec![&env, make_token_info(&env, "XLM")];
+        client.initialize(&gov, &initial);
+        let other = Address::generate(&env);
+        client.initialize(&other, &initial);
     }
 }
