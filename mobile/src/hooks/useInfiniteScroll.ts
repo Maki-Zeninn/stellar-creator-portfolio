@@ -58,6 +58,15 @@ export const useInfiniteScroll = (config: InfiniteScrollConfig) => {
   /**
    * Cleanup and memory optimization
    */
+  const cleanLoadedPages = useCallback((removedCount: number) => {
+    if (maxItems === 0 || removedCount <= 0) return;
+    for (const page of Array.from(loadedPagesRef.current)) {
+      if (page > 0 && page * pageSize <= removedCount) {
+        loadedPagesRef.current.delete(page);
+      }
+    }
+  }, [maxItems, pageSize]);
+
   const pruneData = useCallback((items: any[], maxKeep: number) => {
     if (maxKeep === 0 || items.length <= maxKeep) {
       return items;
@@ -92,9 +101,12 @@ export const useInfiniteScroll = (config: InfiniteScrollConfig) => {
       try {
         const newItems = await pendingRequestRef.current.promise;
         if (isMountedRef.current) {
+          const combined = [...state.data, ...newItems];
+          const pruned = pruneData(combined, maxItems);
+          cleanLoadedPages(combined.length - pruned.length);
           setState((prev) => ({
             ...prev,
-            data: pruneData([...prev.data, ...newItems], maxItems),
+            data: pruned,
             page: nextPage,
             isFetching: false,
           }));
@@ -128,9 +140,12 @@ export const useInfiniteScroll = (config: InfiniteScrollConfig) => {
       }
 
       const hasMoreData = newItems.length === pageSize;
+      const combined = [...state.data, ...newItems];
+      const pruned = pruneData(combined, maxItems);
+      cleanLoadedPages(combined.length - pruned.length);
       setState((prev) => ({
         ...prev,
-        data: pruneData([...prev.data, ...newItems], maxItems),
+        data: pruned,
         page: nextPage,
         hasMore: hasMoreData,
         isFetching: false,
@@ -149,7 +164,7 @@ export const useInfiniteScroll = (config: InfiniteScrollConfig) => {
         pendingRequestRef.current = null;
       }
     }
-  }, [state.page, state.isFetching, state.isLoading, state.hasMore, onLoadMore, pageSize, maxItems, onError, pruneData]);
+  }, [state.page, state.isFetching, state.isLoading, state.hasMore, onLoadMore, pageSize, maxItems, onError, pruneData, cleanLoadedPages]);
 
   /**
    * Refresh data (reset to page 1)
