@@ -59,6 +59,11 @@ Network passphrase: `Test SDF Network ; September 2015`
 > tree is not referenced by any workspace member list or CI job; treat it as
 > legacy/scaffold code pending removal or migration, not as a second deployment
 > target.
+>
+> Additionally, three top-level contracts have **no equivalent in `backend/contracts/` at all**:
+> `contracts/amm` (constant-product AMM), `contracts/vault` (multi-vault batch withdrawal),
+> and `contracts/analytics` (on-chain event analytics). These exist only at the top level
+> and are likewise not built or tested by CI.
 
 ## Getting Started
 

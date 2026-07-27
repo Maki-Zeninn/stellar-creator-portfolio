@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import crypto from 'crypto';
 
-async function verifyWebhookSignature(request: NextRequest): Promise<boolean> {
+async function verifyWebhookSignature(rawBody: string, request: NextRequest): Promise<boolean> {
   const signature = request.headers.get('x-webhook-signature');
   const timestamp = request.headers.get('x-webhook-timestamp');
   const secret = process.env.EMAIL_WEBHOOK_SECRET;
@@ -11,9 +11,8 @@ async function verifyWebhookSignature(request: NextRequest): Promise<boolean> {
     return false;
   }
 
-  const body = await request.text();
   const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(`${timestamp}.${body}`);
+  hmac.update(`${timestamp}.${rawBody}`);
   const expectedSignature = hmac.digest('hex');
 
   return crypto.timingSafeEqual(
@@ -24,7 +23,9 @@ async function verifyWebhookSignature(request: NextRequest): Promise<boolean> {
 
 export async function POST(request: NextRequest) {
   try {
-    const isValid = await verifyWebhookSignature(request);
+    // Read the body once and reuse the string for both signature verification and JSON parsing
+    const rawBody = await request.text();
+    const isValid = await verifyWebhookSignature(rawBody, request);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body = JSON.parse(rawBody);
     const events = Array.isArray(body) ? body : [body];
 
     for (const event of events) {
