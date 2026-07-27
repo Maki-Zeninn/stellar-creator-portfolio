@@ -21,6 +21,7 @@ import {
   unloadAudioAsync,
 } from '../services/AudioPlaybackService';
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from '../theme/tokens';
+import AdaptiveVideoPlayer from '../components/AdaptiveVideoPlayer';
 
 const SAMPLE_TRACK = {
   uri: 'https://storage.googleapis.com/expo-samples/reef.mp3',
