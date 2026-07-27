@@ -10,22 +10,8 @@ fn setup() -> (Env, GovernanceContractClient<'static>, Address) {
     let contract_id = env.register_contract(None, GovernanceContract);
     let client = GovernanceContractClient::new(&env, &contract_id);
 
-    // Bootstrap: set admin via initial config storage
     let admin = new_address(&env);
-    let config_key = soroban_sdk::Symbol::new(&env, "governance_config");
-    env.as_contract(&contract_id, || {
-        env.storage().persistent().set(
-            &config_key,
-            &GovernanceConfig {
-                platform_fee_percent: 50,
-                min_bounty_budget: 100,
-                max_bounty_budget: 1_000_000,
-                dispute_resolution_period: 604_800,
-                admin_address: admin.clone(),
-                last_updated: 0,
-            },
-        );
-    });
+    client.initialize(&admin);
 
     (env, client, admin)
 }
@@ -140,4 +126,24 @@ fn test_set_quorum_percent_requires_auth() {
     assert_requires_auth(|| {
         client.set_quorum_percent(&admin, &20_u64);
     });
+}
+
+#[test]
+fn test_initialize_sets_admin() {
+    let (env, client, admin) = setup();
+    let config = client.get_config();
+    assert_eq!(config.admin_address, admin);
+    assert_eq!(config.platform_fee_percent, 50);
+}
+
+#[test]
+#[should_panic(expected = "Already initialized")]
+fn test_double_initialize_panics() {
+    let env = test_env();
+    let contract_id = env.register_contract(None, GovernanceContract);
+    let client = GovernanceContractClient::new(&env, &contract_id);
+    let admin = new_address(&env);
+    client.initialize(&admin);
+    let other = new_address(&env);
+    client.initialize(&other);
 }

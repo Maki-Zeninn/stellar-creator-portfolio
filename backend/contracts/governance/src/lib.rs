@@ -75,22 +75,32 @@ pub struct GovernanceContract;
 
 #[contractimpl]
 impl GovernanceContract {
+    /// One-time constructor: sets the external admin and default governance parameters.
+    pub fn initialize(env: Env, admin: Address) {
+        admin.require_auth();
+        let config_key = Symbol::new(&env, "governance_config");
+        assert!(
+            !env.storage().persistent().has(&config_key),
+            "Already initialized"
+        );
+
+        let config = GovernanceConfig {
+            platform_fee_percent: 50, // 5%
+            min_bounty_budget: 100,
+            max_bounty_budget: 1_000_000,
+            dispute_resolution_period: 7 * 24 * 3600, // 7 days
+            admin_address: admin,
+            last_updated: 0,
+        };
+        env.storage().persistent().set(&config_key, &config);
+    }
+
     pub fn get_config(env: Env) -> GovernanceConfig {
         let config_key = Symbol::new(&env, "governance_config");
         env.storage()
             .persistent()
             .get::<Symbol, GovernanceConfig>(&config_key)
-            .unwrap_or_else(|| {
-                // Default configuration
-                GovernanceConfig {
-                    platform_fee_percent: 50, // 5%
-                    min_bounty_budget: 100,
-                    max_bounty_budget: 1_000_000,
-                    dispute_resolution_period: 7 * 24 * 3600, // 7 days
-                    admin_address: env.current_contract_address(),
-                    last_updated: 0,
-                }
-            })
+            .expect("Not initialized")
     }
 
     pub fn set_platform_fee(
