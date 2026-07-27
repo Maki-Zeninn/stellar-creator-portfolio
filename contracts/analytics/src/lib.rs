@@ -2,6 +2,9 @@
 
 use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Env, String, Symbol};
 
+const TTL_THRESHOLD: u32 = 100;
+const TTL_TARGET: u32 = 518_400;
+
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
@@ -29,13 +32,22 @@ impl AnalyticsContract {
             event_type,
         };
         env.storage().persistent().set(&key, &event);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_TARGET);
         true
     }
 
     pub fn get_event(env: Env, event_id: u64) -> Option<AnalyticsEvent> {
         let key = (Symbol::new(&env, "event"), event_id);
-        env.storage()
+        let result = env.storage()
             .persistent()
-            .get::<(Symbol, u64), AnalyticsEvent>(&key)
+            .get::<(Symbol, u64), AnalyticsEvent>(&key);
+        if result.is_some() {
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_TARGET);
+        }
+        result
     }
 }
