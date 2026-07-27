@@ -40,6 +40,12 @@ pub const DEFAULT_PLATFORM_FEE_CAP: i128 = 500;
 /// After this window anyone can call `resolve_expired_dispute` for a 50/50 split.
 pub const DISPUTE_TIMEOUT_SECS: u64 = 30 * 24 * 3600;
 
+/// Bounds for the governance-configurable oracle freshness threshold (#1110).
+/// A value of 0 would mark every recorded price stale immediately, while an
+/// unbounded value would defeat the freshness guard entirely.
+pub const MIN_ORACLE_STALENESS_SECS: u64 = 60;
+pub const MAX_ORACLE_STALENESS_SECS: u64 = 86_400;
+
 /// Governance-configurable fee configuration stored on-chain (#722).
 #[contracttype]
 #[derive(Clone, Debug)]
@@ -1110,6 +1116,8 @@ impl EscrowContract {
             .get::<Symbol, Address>(&Symbol::new(&env, "platform_admin"))
             .expect("Platform admin not set");
         assert_eq!(admin, stored_admin, "Only governance multisig can set staleness");
+        assert!(staleness_secs >= MIN_ORACLE_STALENESS_SECS, "Staleness must be at least 60 seconds");
+        assert!(staleness_secs <= MAX_ORACLE_STALENESS_SECS, "Staleness must not exceed 86_400 seconds");
         env.storage().persistent().set(&DataKey::OracleStalenessSecs, &staleness_secs);
     }
 

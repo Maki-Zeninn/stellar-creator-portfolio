@@ -70,6 +70,7 @@ const ONE_YEAR_SECS: u64 = 365 * 24 * 60 * 60;
 #[contractimpl]
 impl IdentityContract {
     pub fn initialize(env: Env, admin: Address) {
+        admin.require_auth();
         assert!(!env.storage().persistent().has(&DataKey::Admin), "Already initialized");
         env.storage().persistent().set(&DataKey::Admin, &admin);
     }
