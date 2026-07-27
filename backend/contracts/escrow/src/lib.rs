@@ -1084,7 +1084,7 @@ impl EscrowContract {
             .expect("Platform admin not set");
         assert_eq!(admin, stored_admin, "Only governance multisig can update fee");
         assert!(new_bps >= 0, "Fee BPS must be non-negative");
-        assert!(new_bps <= 10_000, "Fee BPS must not exceed 10_000");
+        assert!(new_bps <= 1_000, "Fee BPS must not exceed 1_000 (10%)");
         assert!(new_cap >= 0, "Fee cap must be non-negative");
         env.storage().persistent().set(&DataKey::FeeConfig, &FeeConfig {
             fee_bps: new_bps,
