@@ -184,7 +184,10 @@ mod tests {
 
     #[test]
     fn rejects_default_jwt_secret() {
-        let err = validate_jwt_secret("change-me-in-production").expect_err("default secret should fail");
+        // Must be >= 32 chars so the length check doesn't fire first and mask
+        // the placeholder check this test is actually targeting.
+        let err = validate_jwt_secret("change-me-in-production-please-fix")
+            .expect_err("default secret should fail");
         assert!(err.to_string().contains("placeholder"));
     }
 

@@ -95,11 +95,73 @@ export function useFeatureFlag(flagName: string): UseFlagResult {
 export function useFeatureFlags(
   flagNames: string[],
 ): Record<string, boolean> & { loading: boolean } {
-  const results = flagNames.map(useFeatureFlag);
-  const loading = results.some((r) => r.loading);
-  const map = Object.fromEntries(
-    flagNames.map((name, i) => [name, results[i].enabled]),
-  ) as Record<string, boolean>;
+  const { data: session } = useSession();
+  const [results, setResults] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
 
-  return { ...map, loading };
+  useEffect(() => {
+    let cancelled = false;
+
+    async function evaluateAll() {
+      try {
+        const flagResults: Record<string, boolean> = {};
+
+        // Evaluate each flag in parallel
+        const promises = flagNames.map(async (flagName) => {
+          const cacheKey = `${flagName}:${session?.user?.email ?? 'anon'}`;
+          const cached = memCache.get(cacheKey);
+
+          if (cached && cached.expiresAt > Date.now()) {
+            return [flagName, cached.result];
+          }
+
+          try {
+            const params = new URLSearchParams({ flag: flagName });
+            if (session?.user) {
+              params.set('userId', (session.user as { id?: string }).id ?? '');
+            }
+
+            const res = await fetch(`/api/feature-flags/evaluate?${params}`, {
+              cache: 'no-store',
+            });
+
+            if (!res.ok) throw new Error('Flag evaluation failed');
+
+            const data: { enabled: boolean } = await res.json();
+
+            memCache.set(cacheKey, {
+              result: data.enabled,
+              expiresAt: Date.now() + CACHE_TTL_MS,
+            });
+
+            return [flagName, data.enabled];
+          } catch {
+            // On error, default to disabled (safe)
+            return [flagName, false];
+          }
+        });
+
+        const results = await Promise.all(promises);
+
+        Object.assign(flagResults, Object.fromEntries(results));
+
+        if (!cancelled) {
+          setResults(flagResults);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    evaluateAll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [flagNames, session]);
+
+  return { ...results, loading };
 }

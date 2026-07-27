@@ -1,5 +1,4 @@
 use reqwest::Client;
-use serde_json::json;
 use crate::models::{NotificationChannel, NotificationError, Result};
 use crate::config::Settings;
 

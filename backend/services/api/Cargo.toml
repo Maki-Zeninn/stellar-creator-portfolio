@@ -13,9 +13,10 @@ path = "src/main.rs"
 [dependencies]
 actix-web.workspace = true
 actix-cors = "0.7"
-actix-ws = "0.3"
+actix-ws = "0.4"
 actix-rt.workspace = true
 actix-web-httpauth.workspace = true
+actix-web-prom = "0.9"
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -36,6 +37,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 lazy_static = "1.4"
 tokio-tungstenite = "0.29"
+prometheus = { version = "0.13", features = ["process"] }
 
 [profile.release]
 opt-level = 3

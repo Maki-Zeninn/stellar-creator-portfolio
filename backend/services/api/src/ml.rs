@@ -154,19 +154,19 @@ impl SimpleMLModel {
         let feats = features(record);
         self.params
             .read()
-            .expect("model params lock poisoned")
+            .unwrap_or_else(|e| e.into_inner())
             .predict(&feats)
     }
 
     /// Replace the current parameters with newly trained ones.
     pub fn update_params(&self, new_params: ModelParams) {
-        let mut guard = self.params.write().expect("model params lock poisoned");
+        let mut guard = self.params.write().unwrap_or_else(|e| e.into_inner());
         *guard = new_params;
     }
 
     /// Return a snapshot of the current parameters (for persistence / logging).
     pub fn current_params(&self) -> ModelParams {
-        self.params.read().expect("model params lock poisoned").clone()
+        self.params.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 

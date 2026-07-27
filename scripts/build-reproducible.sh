@@ -8,7 +8,7 @@
 #   ./scripts/build-reproducible.sh
 #
 # Output:
-#   artifacts/{bounty,escrow,freelancer,governance}.wasm
+#   artifacts/{bounty,core,escrow,freelancer,governance,identity,insurance,oracle,referral,stellar_insights}.wasm
 #   artifacts/hashes.sha256
 
 set -euo pipefail
@@ -29,7 +29,7 @@ docker build \
 # Extract WASM artifacts from the image without running a container.
 mkdir -p "$ARTIFACTS_DIR"
 
-for CONTRACT in bounty escrow freelancer governance; do
+for CONTRACT in bounty core escrow freelancer governance identity insurance oracle referral stellar_insights; do
   docker run --rm --entrypoint cat "$IMAGE_TAG" \
     "/build/target/wasm32-unknown-unknown/release/${CONTRACT}.wasm" \
     > "$ARTIFACTS_DIR/${CONTRACT}.wasm"
@@ -37,7 +37,7 @@ for CONTRACT in bounty escrow freelancer governance; do
 done
 
 # Write canonical hash file.
-(cd "$ARTIFACTS_DIR" && sha256sum bounty.wasm escrow.wasm freelancer.wasm governance.wasm) \
+(cd "$ARTIFACTS_DIR" && sha256sum bounty.wasm core.wasm escrow.wasm freelancer.wasm governance.wasm identity.wasm insurance.wasm oracle.wasm referral.wasm stellar_insights.wasm) \
   > "$ARTIFACTS_DIR/hashes.sha256"
 
 echo ""

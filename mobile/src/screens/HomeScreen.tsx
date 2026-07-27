@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 import { useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../theme/ThemeProvider";
+import { useI18n } from "../i18n/I18nProvider";
 import { useOfflineData } from "../hooks/useOfflineData";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import {
@@ -152,6 +153,7 @@ async function fetchHomeData(): Promise<HomeData> {
 
 export function HomeScreen() {
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -219,12 +221,12 @@ export function HomeScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Trending portfolios
+            {t("home.trendingTitle")}
           </Text>
           <Text
             style={[styles.sectionCaption, { color: colors.textSecondary }]}
           >
-            Selected from top user activity.
+            {t("home.trendingCaption")}
           </Text>
         </View>
         <FlatList
@@ -284,22 +286,21 @@ export function HomeScreen() {
         >
           <View>
             <Text style={[styles.title, { color: colors.text }]}>
-              Hello, Stellar Creator
+              {t("home.greeting")}
             </Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Track trending portfolios, project demand, and secure your session
-              with biometric access.
+              {t("home.subtitle")}
             </Text>
           </View>
           <View style={styles.heroActions}>
             <ActionButton
-              title="Use Biometrics"
+              title={t("home.useBiometrics")}
               onPress={() => navigation.navigate("BiometricAuth")}
               variant="primary"
               accessibilityLabel="Open biometric authentication screen"
             />
             <ActionButton
-              title="Refresh"
+              title={t("home.refresh")}
               onPress={handleRefresh}
               variant="secondary"
               accessibilityLabel="Refresh home content"
@@ -307,21 +308,21 @@ export function HomeScreen() {
           </View>
           <View style={styles.featureActions}>
             <ActionButton
-              title="Audio"
+              title={t("home.audio")}
               onPress={handleNavigateToAudio}
               variant="secondary"
               style={styles.featureButton}
               accessibilityLabel="Open audio playback screen"
             />
             <ActionButton
-              title="Multi-Sig"
+              title={t("home.multiSig")}
               onPress={handleNavigateToMultiSig}
               variant="secondary"
               style={styles.featureButton}
               accessibilityLabel="Open multi-signature approval screen"
             />
             <ActionButton
-              title="Peer Transfer"
+              title={t("home.peerTransfer")}
               onPress={handleNavigateToP2P}
               variant="secondary"
               style={styles.featureButton}
@@ -341,7 +342,7 @@ export function HomeScreen() {
             ]}
           >
             <Text style={[styles.staleText, { color: colors.warning }]}>
-              Cached data from {cachedAt.toLocaleTimeString()}
+              {t("home.cachedData", { time: cachedAt.toLocaleTimeString() })}
             </Text>
           </View>
         )}
@@ -350,7 +351,7 @@ export function HomeScreen() {
           <View style={styles.loadingWrapper}>
             <ActivityIndicator color={colors.primary} size="large" />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-              Loading portfolio analytics…
+              {t("home.loadingAnalytics")}
             </Text>
           </View>
         ) : (
@@ -359,7 +360,7 @@ export function HomeScreen() {
             {trendingSection}
             <ProjectBountyList
               items={data?.projectBountyItems ?? []}
-              title="Project & Bounty feed"
+              title={t("home.projectBountyFeed")}
               onSelect={onItemSelect}
             />
           </>

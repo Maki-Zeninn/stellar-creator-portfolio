@@ -74,3 +74,48 @@ pub fn register_freelancer(registration: FreelancerRegistration, address: String
         verified: false, // Verification process would be separate
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_freelancer_by_address_returns_none_for_unknown_address() {
+        assert!(get_freelancer_by_address("GUNKNOWN").is_none());
+    }
+
+    #[test]
+    fn filter_by_discipline_with_empty_string_returns_all() {
+        let freelancers = get_mock_freelancers();
+        let filtered = filter_freelancers_by_discipline(freelancers.clone(), "");
+        assert_eq!(filtered.len(), freelancers.len());
+    }
+
+    #[test]
+    fn filter_by_discipline_is_case_insensitive_partial_match() {
+        let freelancers = get_mock_freelancers();
+        let filtered = filter_freelancers_by_discipline(freelancers, "full stack");
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].discipline, "Full Stack Development");
+    }
+
+    #[test]
+    fn filter_by_discipline_with_no_match_returns_empty() {
+        let freelancers = get_mock_freelancers();
+        let filtered = filter_freelancers_by_discipline(freelancers, "Blockchain Auditing");
+        assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn register_freelancer_starts_unverified_with_no_track_record() {
+        let registration = FreelancerRegistration {
+            name: "New Freelancer".to_string(),
+            discipline: "Illustration".to_string(),
+            bio: "Fresh to the platform".to_string(),
+        };
+        let freelancer = register_freelancer(registration, "GNEWADDRESS".to_string());
+        assert_eq!(freelancer.rating, 0.0);
+        assert_eq!(freelancer.completed_projects, 0);
+        assert!(!freelancer.verified);
+    }
+}

@@ -204,3 +204,142 @@ pub fn handle_command(cmd: Command, now: u64) -> Result<Vec<DomainEvent>, &'stat
 
     Ok(events)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_bounty_produces_single_bounty_created_event() {
+        let cmd = Command::CreateBounty {
+            bounty_id: "b-1".to_string(),
+            creator_id: "creator-1".to_string(),
+            title: "Design a logo".to_string(),
+            budget_usd: 500,
+            deadline_ts: 1_700_000_000,
+        };
+        let events = handle_command(cmd, 1_600_000_000).expect("command should succeed");
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            DomainEvent::BountyCreated { bounty_id, creator_id, title, budget_usd, deadline_ts, occurred_at } => {
+                assert_eq!(bounty_id, "b-1");
+                assert_eq!(creator_id, "creator-1");
+                assert_eq!(title, "Design a logo");
+                assert_eq!(*budget_usd, 500);
+                assert_eq!(*deadline_ts, 1_700_000_000);
+                assert_eq!(*occurred_at, 1_600_000_000);
+            }
+            other => panic!("expected BountyCreated, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn apply_for_bounty_produces_application_received_event() {
+        let cmd = Command::ApplyForBounty {
+            application_id: "app-1".to_string(),
+            bounty_id: "b-1".to_string(),
+            freelancer_id: "freelancer-1".to_string(),
+            proposed_budget_usd: 450,
+        };
+        let events = handle_command(cmd, 1_600_000_000).unwrap();
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], DomainEvent::BountyApplicationReceived { .. }));
+    }
+
+    #[test]
+    fn select_freelancer_produces_freelancer_selected_event() {
+        let cmd = Command::SelectFreelancer {
+            bounty_id: "b-1".to_string(),
+            application_id: "app-1".to_string(),
+        };
+        let events = handle_command(cmd, 1_600_000_000).unwrap();
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], DomainEvent::FreelancerSelected { .. }));
+    }
+
+    #[test]
+    fn complete_bounty_produces_bounty_completed_event() {
+        let cmd = Command::CompleteBounty { bounty_id: "b-1".to_string() };
+        let events = handle_command(cmd, 1_600_000_000).unwrap();
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], DomainEvent::BountyCompleted { .. }));
+    }
+
+    #[test]
+    fn deposit_escrow_produces_escrow_deposited_event() {
+        let cmd = Command::DepositEscrow {
+            escrow_id: "e-1".to_string(),
+            bounty_id: "b-1".to_string(),
+            payer_id: "payer-1".to_string(),
+            payee_id: "payee-1".to_string(),
+            amount_usd: 500,
+        };
+        let events = handle_command(cmd, 1_600_000_000).unwrap();
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], DomainEvent::EscrowDeposited { .. }));
+    }
+
+    #[test]
+    fn release_and_refund_escrow_produce_matching_events() {
+        let release = handle_command(
+            Command::ReleaseEscrow { escrow_id: "e-1".to_string(), authorizer_id: "auth-1".to_string() },
+            1_600_000_000,
+        ).unwrap();
+        assert!(matches!(release[0], DomainEvent::EscrowReleased { .. }));
+
+        let refund = handle_command(
+            Command::RefundEscrow { escrow_id: "e-1".to_string(), authorizer_id: "auth-1".to_string() },
+            1_600_000_000,
+        ).unwrap();
+        assert!(matches!(refund[0], DomainEvent::EscrowRefunded { .. }));
+    }
+
+    #[test]
+    fn submit_review_rejects_rating_of_zero() {
+        let cmd = Command::SubmitReview {
+            review_id: "r-1".to_string(),
+            bounty_id: "b-1".to_string(),
+            creator_id: "creator-1".to_string(),
+            rating: 0,
+            zk_proof: "proof".to_string(),
+            zk_nullifier: "nullifier".to_string(),
+        };
+        let result = handle_command(cmd, 1_600_000_000);
+        assert_eq!(result.unwrap_err(), "Rating must be between 1 and 5");
+    }
+
+    #[test]
+    fn submit_review_rejects_rating_above_five() {
+        let cmd = Command::SubmitReview {
+            review_id: "r-1".to_string(),
+            bounty_id: "b-1".to_string(),
+            creator_id: "creator-1".to_string(),
+            rating: 6,
+            zk_proof: "proof".to_string(),
+            zk_nullifier: "nullifier".to_string(),
+        };
+        let result = handle_command(cmd, 1_600_000_000);
+        assert_eq!(result.unwrap_err(), "Rating must be between 1 and 5");
+    }
+
+    #[test]
+    fn submit_review_accepts_valid_rating_and_omits_proof_from_event() {
+        let cmd = Command::SubmitReview {
+            review_id: "r-1".to_string(),
+            bounty_id: "b-1".to_string(),
+            creator_id: "creator-1".to_string(),
+            rating: 5,
+            zk_proof: "secret-proof".to_string(),
+            zk_nullifier: "nullifier-abc".to_string(),
+        };
+        let events = handle_command(cmd, 1_600_000_000).unwrap();
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            DomainEvent::ReviewSubmitted { rating, zk_nullifier, .. } => {
+                assert_eq!(*rating, 5);
+                assert_eq!(zk_nullifier, "nullifier-abc");
+            }
+            other => panic!("expected ReviewSubmitted, got {other:?}"),
+        }
+    }
+}

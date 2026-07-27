@@ -1,4 +1,4 @@
-use crate::models::{NotificationChannel, NotificationError, Result};
+use crate::models::Result;
 use crate::config::Settings;
 
 pub struct PushProvider {

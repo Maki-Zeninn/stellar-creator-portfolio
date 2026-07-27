@@ -19,7 +19,12 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 async function embedQuery(query: string): Promise<number[]> {
   if (!OPENAI_API_KEY) {
     // Fallback: return a deterministic mock vector for local dev.
-    return Array.from({ length: 1536 }, (_, i) => Math.sin(i + query.length));
+    // Hash based on full query content, not just length, so distinct queries produce distinct vectors.
+    let hash = 0;
+    for (let i = 0; i < query.length; i++) {
+      hash += query.charCodeAt(i);
+    }
+    return Array.from({ length: 1536 }, (_, i) => Math.sin(i + hash));
   }
 
   const res = await fetch(EMBED_ENDPOINT, {
@@ -62,6 +67,10 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       // Graceful degradation: fall back to text search if vector search fails.
+      // Signal the degraded mode to callers and monitoring via a response flag
+      // and a non-200 status, mirroring the pattern used in /api/search/hybrid.
+      console.warn('[vector-search] match_creators RPC failed, falling back to text search:', error.message);
+
       const { data: fallback } = await supabaseServer
         .from('creators')
         .select('id, name, title, discipline, skills')
@@ -73,7 +82,18 @@ export async function POST(req: NextRequest) {
         score: 0.5,
         matchedTags: [],
       }));
-      return NextResponse.json(results);
+
+      return NextResponse.json(
+        {
+          results,
+          meta: {
+            engine: 'text-fallback',
+            fallback: true,
+            fallbackReason: 'vector-search-unavailable',
+          },
+        },
+        { status: 503 },
+      );
     }
 
     // Apply tag filtering on the server side.

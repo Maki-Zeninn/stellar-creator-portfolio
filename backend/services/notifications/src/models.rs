@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[allow(clippy::upper_case_acronyms)] // `SMS` is part of the serde wire format; renaming would be a breaking change
 pub enum NotificationChannel {
     Email,
     SMS,
@@ -26,6 +27,7 @@ pub enum NotificationError {
         reason: String,
     },
     #[error("Rate limited")]
+    #[allow(dead_code)] // reserved for future rate-limiting support
     RateLimited,
     #[error("Invalid recipient: {0}")]
     InvalidRecipient(String),

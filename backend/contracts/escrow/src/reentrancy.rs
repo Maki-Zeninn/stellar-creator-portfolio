@@ -33,6 +33,26 @@
 //!   CHECK  : auth, status==Active, !milestone.released
 //!   EFFECT : milestone.released = true                             ← before transfer
 //!   INTERACT: token.transfer(contract → payee)
+//!
+//! refund_expired_bounty()
+//!   CHECK  : bounty_contract auth, escrow active
+//!   EFFECT : escrow.status = Refunded, escrow.released_at = now    ← before transfer
+//!   INTERACT: token.transfer(contract → payer)
+//!
+//! resolve_dispute()
+//!   CHECK  : platform admin auth, escrow disputed
+//!   EFFECT : escrow status + released_at                           ← before transfer
+//!   INTERACT: token.transfer(contract → recipient)
+//!
+//! resolve_expired_dispute()
+//!   CHECK  : escrow disputed, expiry elapsed
+//!   EFFECT : escrow status + released_at                           ← before transfers
+//!   INTERACT: token.transfer(s) to payee and/or payer
+//!
+//! withdraw_yield()
+//!   CHECK  : platform admin auth, yield available, liquidity OK
+//!   EFFECT : accrual.accrued = 0                                   ← before transfer
+//!   INTERACT: token.transfer(contract → admin)
 //! ```
 
 use soroban_sdk::{Env, Symbol};

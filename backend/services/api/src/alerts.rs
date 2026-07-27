@@ -164,7 +164,7 @@ pub async fn create_alert(
         read_at: None,
     };
 
-    store.alerts.lock().unwrap().insert(id.clone(), alert.clone());
+    store.alerts.lock().unwrap_or_else(|e| e.into_inner()).insert(id.clone(), alert.clone());
 
     tracing::info!("Alert {} created by user {}", id, claims.sub);
 
@@ -189,7 +189,7 @@ pub async fn list_alerts(
     let alerts: Vec<Alert> = store
         .alerts
         .lock()
-        .unwrap()
+        .unwrap_or_else(|e| e.into_inner())
         .values()
         .filter(|a| a.user_id == claims.sub)
         .cloned()
@@ -235,7 +235,7 @@ pub async fn update_alert(
         ));
     }
 
-    let mut store_lock = store.alerts.lock().unwrap();
+    let mut store_lock = store.alerts.lock().unwrap_or_else(|e| e.into_inner());
 
     let alert = match store_lock.get(&alert_id) {
         Some(a) => a.clone(),
@@ -307,7 +307,7 @@ pub async fn delete_alert(
     };
 
     let alert_id = path.into_inner();
-    let mut store_lock = store.alerts.lock().unwrap();
+    let mut store_lock = store.alerts.lock().unwrap_or_else(|e| e.into_inner());
 
     let alert = match store_lock.get(&alert_id) {
         Some(a) => a.clone(),

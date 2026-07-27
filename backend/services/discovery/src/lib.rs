@@ -102,3 +102,57 @@ pub async fn create_discovery() -> Result<Box<dyn ServiceDiscovery>> {
 
 // Re-export the async_trait macro so downstream crates don't need the dep.
 pub use async_trait::async_trait;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn service_info_new_sets_fields_and_generates_unique_id() {
+        let info = ServiceInfo::new("stellar-api", "127.0.0.1", 3001);
+        assert!(info.id.starts_with("stellar-api-"));
+        assert_eq!(info.name, "stellar-api");
+        assert_eq!(info.address, "127.0.0.1");
+        assert_eq!(info.port, 3001);
+        assert!(info.tags.is_empty());
+
+        let other = ServiceInfo::new("stellar-api", "127.0.0.1", 3001);
+        assert_ne!(info.id, other.id, "each instance must get a unique id");
+    }
+
+    #[test]
+    fn with_tags_replaces_the_tag_list() {
+        let info = ServiceInfo::new("svc", "127.0.0.1", 3001)
+            .with_tags(vec!["v1".to_string(), "primary".to_string()]);
+        assert_eq!(info.tags, vec!["v1".to_string(), "primary".to_string()]);
+    }
+
+    // Both branches live in one test because they mutate the shared
+    // CONSUL_HTTP_ADDR process env var; splitting them risks a race if the
+    // test binary runs them concurrently.
+    #[tokio::test]
+    async fn create_discovery_picks_backend_from_env() {
+        std::env::remove_var("CONSUL_HTTP_ADDR");
+        let static_disc = create_discovery()
+            .await
+            .expect("static backend should construct without CONSUL_HTTP_ADDR");
+        let info = ServiceInfo::new("probe", "10.0.0.5", 4000);
+        static_disc
+            .register(info.clone())
+            .await
+            .expect("static register works without any network access");
+        let resolved = static_disc
+            .resolve("probe")
+            .await
+            .expect("static resolve works without any network access");
+        assert_eq!(resolved.map(|s| s.address), Some("10.0.0.5".to_string()));
+
+        std::env::set_var("CONSUL_HTTP_ADDR", "http://127.0.0.1:8500");
+        let consul_disc = create_discovery().await;
+        std::env::remove_var("CONSUL_HTTP_ADDR");
+        assert!(
+            consul_disc.is_ok(),
+            "picking the Consul backend must not require a reachable Consul server"
+        );
+    }
+}

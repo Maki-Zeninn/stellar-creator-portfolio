@@ -76,7 +76,10 @@ impl WsConnectionLimiter {
     }
 
     fn acquire(&self, client_ip: &str) -> Result<WsConnectionLease, String> {
-        let mut per_ip = self.per_ip_connections.lock().unwrap();
+        let mut per_ip = self
+            .per_ip_connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let current_global = self.active_connections.load(Ordering::Relaxed);
 
         if current_global >= self.global_limit {
@@ -106,7 +109,10 @@ impl WsConnectionLimiter {
     }
 
     fn release(&self, client_ip: &str) {
-        let mut per_ip = self.per_ip_connections.lock().unwrap();
+        let mut per_ip = self
+            .per_ip_connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         if let Some(count) = per_ip.get_mut(client_ip) {
             if *count <= 1 {
@@ -315,6 +321,46 @@ mod tests {
         drop(a2);
         drop(b1);
         assert_eq!(limiter.metrics().active_connections, 0);
+    }
+
+    #[test]
+    fn limiter_survives_poisoned_mutex() {
+        // Arrange: build a limiter and poison its mutex by panicking
+        // inside a thread while holding the lock.
+        let limiter = WsConnectionLimiter {
+            per_ip_limit: 2,
+            global_limit: 5,
+            active_connections: Arc::new(AtomicUsize::new(0)),
+            rejected_connections: Arc::new(AtomicUsize::new(0)),
+            per_ip_connections: Arc::new(Mutex::new(HashMap::new())),
+        };
+
+        let map = Arc::clone(&limiter.per_ip_connections);
+        let handle = std::thread::spawn(move || {
+            let _guard = map.lock().unwrap();
+            panic!("intentional panic to poison the mutex");
+        });
+        // The thread panicked; joining returns an Err, which is expected.
+        let _ = handle.join();
+
+        // The mutex is now poisoned. Both acquire() and release() must
+        // recover via unwrap_or_else rather than propagating the panic.
+        let lease = limiter
+            .acquire("192.0.2.1")
+            .expect("acquire must succeed after mutex poison");
+
+        assert_eq!(limiter.metrics().active_connections, 1);
+
+        // Dropping the lease calls release() through the same poisoned mutex.
+        drop(lease);
+
+        assert_eq!(limiter.metrics().active_connections, 0);
+
+        // A second acquire confirms the limiter is still fully operational.
+        let _lease2 = limiter
+            .acquire("192.0.2.1")
+            .expect("second acquire must also succeed");
+        assert_eq!(limiter.metrics().active_connections, 1);
     }
 
     #[test]

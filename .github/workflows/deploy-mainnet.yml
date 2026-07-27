@@ -41,7 +41,13 @@ jobs:
           cargo install stellar-cli --features opt
 
       - name: Build contracts
-        run: cd backend && cargo build --release --target wasm32-unknown-unknown
+        run: cd backend && cargo build --release --target wasm32-unknown-unknown \
+          --package stellar-bounty-contract \
+          --package stellar-escrow-contract \
+          --package stellar-freelancer-contract \
+          --package stellar-governance-contract \
+          --package oracle \
+          --package stellar-identity-contract
 
       - name: Run contract unit tests
         run: cd backend && cargo test --all-features
@@ -62,6 +68,8 @@ jobs:
       escrow_contract_id: ${{ steps.deploy.outputs.escrow_contract_id }}
       freelancer_contract_id: ${{ steps.deploy.outputs.freelancer_contract_id }}
       governance_contract_id: ${{ steps.deploy.outputs.governance_contract_id }}
+      oracle_contract_id: ${{ steps.deploy.outputs.oracle_contract_id }}
+      identity_contract_id: ${{ steps.deploy.outputs.identity_contract_id }}
     steps:
       - uses: actions/checkout@v6
 
@@ -110,6 +118,8 @@ jobs:
           NEXT_PUBLIC_ESCROW_CONTRACT_ID: ${{ needs.deploy-contracts.outputs.escrow_contract_id }}
           NEXT_PUBLIC_FREELANCER_CONTRACT_ID: ${{ needs.deploy-contracts.outputs.freelancer_contract_id }}
           NEXT_PUBLIC_GOVERNANCE_CONTRACT_ID: ${{ needs.deploy-contracts.outputs.governance_contract_id }}
+          NEXT_PUBLIC_ORACLE_CONTRACT_ID: ${{ needs.deploy-contracts.outputs.oracle_contract_id }}
+          NEXT_PUBLIC_IDENTITY_CONTRACT_ID: ${{ needs.deploy-contracts.outputs.identity_contract_id }}
         run: pnpm build
 
       - name: Deploy to Vercel (production)
@@ -151,6 +161,8 @@ jobs:
                   {"title": "Escrow Contract",     "value": "`${{ needs.deploy-contracts.outputs.escrow_contract_id }}`",     "short": true},
                   {"title": "Freelancer Contract", "value": "`${{ needs.deploy-contracts.outputs.freelancer_contract_id }}`", "short": true},
                   {"title": "Governance Contract", "value": "`${{ needs.deploy-contracts.outputs.governance_contract_id }}`", "short": true},
+                  {"title": "Oracle Contract",     "value": "`${{ needs.deploy-contracts.outputs.oracle_contract_id }}`",     "short": true},
+                  {"title": "Identity Contract",   "value": "`${{ needs.deploy-contracts.outputs.identity_contract_id }}`",   "short": true},
                   {"title": "Run",                 "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>", "short": false}
                 ]
               }]
@@ -167,6 +179,8 @@ jobs:
           | Escrow | \`${{ needs.deploy-contracts.outputs.escrow_contract_id }}\` |
           | Freelancer | \`${{ needs.deploy-contracts.outputs.freelancer_contract_id }}\` |
           | Governance | \`${{ needs.deploy-contracts.outputs.governance_contract_id }}\` |
+          | Oracle | \`${{ needs.deploy-contracts.outputs.oracle_contract_id }}\` |
+          | Identity | \`${{ needs.deploy-contracts.outputs.identity_contract_id }}\` |
 
           [View full run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           EOF

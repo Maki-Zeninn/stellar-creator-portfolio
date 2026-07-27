@@ -155,3 +155,97 @@ fn chrono_now() -> String {
     // Stable timestamp placeholder — real impl would use chrono or time crate
     "2026-01-01T00:00:00Z".to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn valid_submission() -> ReviewSubmission {
+        ReviewSubmission {
+            bounty_id: "b-9".to_string(),
+            creator_id: "alex-studio".to_string(),
+            rating: 5,
+            title: "Great work".to_string(),
+            body: "Excellent job!".to_string(),
+            reviewer_name: "Test Reviewer".to_string(),
+        }
+    }
+
+    #[test]
+    fn reviews_for_creator_returns_empty_for_unknown_creator() {
+        assert!(reviews_for_creator("unknown-creator").is_empty());
+    }
+
+    #[test]
+    fn aggregate_reviews_of_empty_slice_is_zeroed() {
+        let aggregation = aggregate_reviews(&[]);
+        assert_eq!(aggregation.total_reviews, 0);
+        assert_eq!(aggregation.average_rating, 0.0);
+        assert_eq!(aggregation.rating_distribution, [0, 0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn aggregate_reviews_computes_distribution_and_average() {
+        let reviews = reviews_for_creator("alex-studio");
+        let aggregation = aggregate_reviews(&reviews);
+        assert_eq!(aggregation.total_reviews, 2);
+        assert_eq!(aggregation.average_rating, 4.5);
+        assert_eq!(aggregation.rating_distribution, [0, 0, 0, 1, 1]);
+    }
+
+    #[test]
+    fn recent_reviews_respects_limit_and_sorts_newest_first() {
+        let reviews = get_mock_reviews();
+        let recent = recent_reviews(&reviews, 2);
+        assert_eq!(recent.len(), 2);
+        assert_eq!(recent[0].id, "rev-alex-studio-b-1");
+        assert_eq!(recent[1].id, "rev-jordan-dev-b-1");
+    }
+
+    #[test]
+    fn submit_review_rejects_empty_bounty_id() {
+        let mut submission = valid_submission();
+        submission.bounty_id = "  ".to_string();
+        assert_eq!(submit_review(submission).unwrap_err(), "Bounty ID is required");
+    }
+
+    #[test]
+    fn submit_review_rejects_empty_creator_id() {
+        let mut submission = valid_submission();
+        submission.creator_id = "".to_string();
+        assert_eq!(submit_review(submission).unwrap_err(), "Creator ID is required");
+    }
+
+    #[test]
+    fn submit_review_rejects_out_of_range_rating() {
+        let mut too_low = valid_submission();
+        too_low.rating = 0;
+        assert_eq!(submit_review(too_low).unwrap_err(), "Rating must be between 1 and 5");
+
+        let mut too_high = valid_submission();
+        too_high.rating = 6;
+        assert_eq!(submit_review(too_high).unwrap_err(), "Rating must be between 1 and 5");
+    }
+
+    #[test]
+    fn submit_review_rejects_empty_title_body_or_reviewer_name() {
+        let mut no_title = valid_submission();
+        no_title.title = " ".to_string();
+        assert_eq!(submit_review(no_title).unwrap_err(), "Title is required");
+
+        let mut no_body = valid_submission();
+        no_body.body = "".to_string();
+        assert_eq!(submit_review(no_body).unwrap_err(), "Feedback is required");
+
+        let mut no_reviewer = valid_submission();
+        no_reviewer.reviewer_name = "  ".to_string();
+        assert_eq!(submit_review(no_reviewer).unwrap_err(), "Your name is required");
+    }
+
+    #[test]
+    fn submit_review_accepts_valid_submission() {
+        let review = submit_review(valid_submission()).expect("valid submission should succeed");
+        assert_eq!(review.id, "rev-alex-studio-b-9");
+        assert_eq!(review.rating, 5);
+    }
+}
