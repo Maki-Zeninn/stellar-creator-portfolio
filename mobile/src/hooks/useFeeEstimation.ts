@@ -44,15 +44,11 @@ export function useFeeEstimation(
     setError(null);
 
     try {
-      const url = `/api/estimate?contract=${encodeURIComponent(contract)}&method=${encodeURIComponent(method)}&budget=${budget}`;
-      const response = await fetch(url);
+      const response = await apiClient.get('/api/estimate', {
+        params: { contract, method, budget },
+      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      setEstimate(data.estimates);
+      setEstimate(response.estimates);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch fee estimate");
       setEstimate(null);
