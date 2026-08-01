@@ -1,20 +1,35 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { createHash, scryptSync, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
 
+// Legacy scheme (pre-fix): every account shared this one hardcoded salt,
+// which defeats the point of salting. Kept only so accounts hashed before
+// this fix can still log in; verifyPassword upgrades them to the new
+// per-user random-salt format on successful login.
+const LEGACY_SALT = createHash('sha256').update('stellar-salt').digest();
+
 function hashPassword(password: string): string {
-  const salt = createHash('sha256').update('stellar-salt').digest();
+  const salt = randomBytes(16);
   const hash = scryptSync(password, salt, 64);
-  return hash.toString('hex');
+  return `${salt.toString('hex')}:${hash.toString('hex')}`;
 }
 
 function verifyPassword(password: string, stored: string): boolean {
-  const salt = createHash('sha256').update('stellar-salt').digest();
+  const sepIndex = stored.indexOf(':');
+  if (sepIndex === -1) {
+    // Legacy fixed-salt hash — no embedded salt.
+    const hash = scryptSync(password, LEGACY_SALT, 64);
+    const storedBuf = Buffer.from(stored, 'hex');
+    if (hash.length !== storedBuf.length) return false;
+    return timingSafeEqual(hash, storedBuf);
+  }
+
+  const salt = Buffer.from(stored.slice(0, sepIndex), 'hex');
+  const storedHash = Buffer.from(stored.slice(sepIndex + 1), 'hex');
   const hash = scryptSync(password, salt, 64);
-  const storedBuf = Buffer.from(stored, 'hex');
-  if (hash.length !== storedBuf.length) return false;
-  return timingSafeEqual(hash, storedBuf);
+  if (hash.length !== storedHash.length) return false;
+  return timingSafeEqual(hash, storedHash);
 }
 
 export const authOptions: NextAuthOptions = {
@@ -37,6 +52,15 @@ export const authOptions: NextAuthOptions = {
         });
         if (!user?.password || !user.emailVerified) return null;
         if (!verifyPassword(credentials.password, user.password)) return null;
+
+        // Transparently upgrade legacy fixed-salt hashes to the new
+        // per-user random-salt format now that we know the plaintext.
+        if (!user.password.includes(':')) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { password: hashPassword(credentials.password) },
+          });
+        }
 
         return {
           id: user.id,
