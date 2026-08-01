@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const cached = getCachedResponse(idempotencyKey)
+  const cached = await getCachedResponse(idempotencyKey)
   if (cached) {
     return NextResponse.json(cached.body, { status: cached.status })
   }
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       amountCents: data.amountCents,
       currency: data.currency,
     }
-    cacheResponse(idempotencyKey, 200, responseBody)
+    await cacheResponse(idempotencyKey, 200, responseBody)
     return NextResponse.json(responseBody)
   }
 
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     })
 
     const responseBody = { url: sessionCheckout.url }
-    cacheResponse(idempotencyKey, 200, responseBody)
+    await cacheResponse(idempotencyKey, 200, responseBody)
     return NextResponse.json(responseBody)
   }
 
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     if (!isStripeConfigured()) {
       markReleased(escrow.id)
       const responseBody = { ok: true, escrow: getEscrow(escrow.id), mode: 'simulated' }
-      cacheResponse(idempotencyKey, 200, responseBody)
+      await cacheResponse(idempotencyKey, 200, responseBody)
       return NextResponse.json(responseBody)
     }
 
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
     markReleased(escrow.id, receiptUrl)
 
     const responseBody = { ok: true, escrow: getEscrow(escrow.id), receiptUrl }
-    cacheResponse(idempotencyKey, 200, responseBody)
+    await cacheResponse(idempotencyKey, 200, responseBody)
     return NextResponse.json(responseBody)
   }
 
@@ -193,14 +193,14 @@ export async function POST(request: NextRequest) {
     if (!isStripeConfigured()) {
       markRefunded(escrow.id)
       const responseBody = { ok: true, escrow: getEscrow(escrow.id), mode: 'simulated' }
-      cacheResponse(idempotencyKey, 200, responseBody)
+      await cacheResponse(idempotencyKey, 200, responseBody)
       return NextResponse.json(responseBody)
     }
 
     if (!escrow.paymentIntentId) {
       markRefunded(escrow.id)
       const responseBody = { ok: true, escrow: getEscrow(escrow.id) }
-      cacheResponse(idempotencyKey, 200, responseBody)
+      await cacheResponse(idempotencyKey, 200, responseBody)
       return NextResponse.json(responseBody)
     }
 
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
 
     markRefunded(escrow.id)
     const responseBody = { ok: true, escrow: getEscrow(escrow.id) }
-    cacheResponse(idempotencyKey, 200, responseBody)
+    await cacheResponse(idempotencyKey, 200, responseBody)
     return NextResponse.json(responseBody)
   }
 
