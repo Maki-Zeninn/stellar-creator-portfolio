@@ -15,7 +15,7 @@
  *     `Retry-After: 30`
  */
 
-import { rpc, Networks } from '@stellar/stellar-sdk';
+import { rpc, Networks, type Account } from '@stellar/stellar-sdk';
 import { getSecret } from '@/backend/services/kms';
 import {
   stellarCircuitBreaker,
@@ -51,7 +51,7 @@ class ProtectedRpcServer {
   }
 
   /** Fetch account details — fails fast when circuit is OPEN. */
-  getAccount(publicKey: string): Promise<rpc.Api.AccountResponse> {
+  getAccount(publicKey: string): Promise<Account> {
     return stellarCircuitBreaker.execute(() =>
       this.server.getAccount(publicKey),
     );
