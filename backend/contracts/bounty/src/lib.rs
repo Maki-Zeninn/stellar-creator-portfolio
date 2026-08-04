@@ -119,6 +119,18 @@ pub struct BountyContract;
 
 #[contractimpl]
 impl BountyContract {
+    /// Set the contract admin. Must be called once before any admin-gated
+    /// method (`set_escrow_contract`, `set_multisig_signers`, ...).
+    pub fn initialize(env: Env, admin: Address) {
+        admin.require_auth();
+        let stored_admin_key = Symbol::new(&env, "bounty_admin");
+        assert!(
+            !env.storage().persistent().has(&stored_admin_key),
+            "Already initialized"
+        );
+        env.storage().persistent().set(&stored_admin_key, &admin);
+    }
+
     pub fn set_escrow_contract(env: Env, admin: Address, escrow: Address) -> bool {
         admin.require_auth();
         let stored_admin_key = Symbol::new(&env, "bounty_admin");

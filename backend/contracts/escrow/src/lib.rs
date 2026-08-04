@@ -160,6 +160,17 @@ pub struct YieldAccrual {
 
 
 
+/// Mirrors `oracle::PriceData` field-for-field so the cross-contract call in
+/// `release_funds` can decode the oracle's return value without a crate
+/// dependency on the oracle contract itself.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct OraclePriceData {
+    pub price_micro_usd: i128,
+    pub timestamp: u64,
+    pub sources: u32,
+}
+
 #[contract]
 pub struct EscrowContract;
 
@@ -278,18 +289,12 @@ impl EscrowContract {
         // Issue #725: Oracle price freshness check before release
         if let Some(oracle_addr) = env.storage().persistent().get::<DataKey, Address>(&DataKey::OracleAddress) {
             let max_staleness = Self::get_oracle_staleness_secs(&env);
-            let price_data: soroban_sdk::Vec<soroban_sdk::Val> = env
-                .invoke_contract(
-                    &oracle_addr,
-                    &Symbol::new(&env, "get_price"),
-                    soroban_sdk::Vec::new(&env),
-                );
-            let timestamp: u64 = price_data
-                .get(1)
-                .expect("Oracle returned invalid price data")
-                .try_into()
-                .unwrap_or(0);
-            let age_secs = env.ledger().timestamp().saturating_sub(timestamp);
+            let price_data: OraclePriceData = env.invoke_contract(
+                &oracle_addr,
+                &Symbol::new(&env, "get_price"),
+                soroban_sdk::Vec::new(&env),
+            );
+            let age_secs = env.ledger().timestamp().saturating_sub(price_data.timestamp);
             if age_secs > max_staleness {
                 panic!("Oracle price feed is stale");
             }
@@ -1073,8 +1078,6 @@ impl EscrowContract {
             new_wasm_hash,
         );
     }
-}
-
 
     // ---- Issue #722: Governance-controlled platform fee update ----
 
@@ -1138,6 +1141,8 @@ impl EscrowContract {
         assert_eq!(admin, stored_admin, "Only governance multisig can set oracle");
         env.storage().persistent().set(&DataKey::OracleAddress, &oracle);
     }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -36,7 +36,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, panic_with_error, symbol_short, token,
+    contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, token,
     Address, Env, String,
 };
 
@@ -64,8 +64,9 @@ pub enum DataKey {
 
 // ── Error codes ──────────────────────────────────────────────────────────────
 
-#[contracttype]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
 pub enum InsuranceError {
     NotInitialized = 1,
     AlreadyInitialized = 2,
@@ -77,12 +78,6 @@ pub enum InsuranceError {
     InvalidAmount = 8,
     VotingPeriodNotEnded = 9,
     ClaimAlreadyApproved = 10,
-}
-
-impl soroban_sdk::contracterror::ContractError for InsuranceError {
-    fn as_i32(&self) -> i32 {
-        *self as i32
-    }
 }
 
 // ── Claim lifecycle ───────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 pub mod fee;
 
 use fee::{assert_valid_fee_bps, compute_fee, compute_net, MAX_FEE_BPS};
-use soroban_sdk::{contract, contractimpl, contracttype, panic_with_error, symbol_short, Address, Env, Symbol};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, Address, Env, Symbol};
 
 const FEE_KEY: Symbol = symbol_short!("fee_bps");
 const ADMIN_KEY: Symbol = symbol_short!("admin");
@@ -18,20 +18,15 @@ pub enum DataKey {
 
 // ── Error codes (#820) ───────────────────────────────────────────────────────
 
-#[contracttype]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
 pub enum CoreError {
     Paused = 1,
     NotGuardian = 2,
     NotGovernance = 3,
     AlreadyPaused = 4,
     NotPaused = 5,
-}
-
-impl soroban_sdk::contracterror::ContractError for CoreError {
-    fn as_i32(&self) -> i32 {
-        *self as i32
-    }
 }
 
 // ── Internal helpers (#820) ──────────────────────────────────────────────────

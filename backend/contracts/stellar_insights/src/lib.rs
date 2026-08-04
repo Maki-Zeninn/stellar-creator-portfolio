@@ -643,7 +643,7 @@ mod tests {
         env.ledger().set_timestamp(6 * SECONDS_PER_MONTH);
         assert!(contract.is_decaying(&creator));
 
-        contract.record_bounty_completion(&creator, &100);
+        contract.record_bounty_completion(&admin, &creator, &100);
         assert!(!contract.is_decaying(&creator));
         assert_eq!(contract.get_effective_reputation(&creator), 1100);
     }
