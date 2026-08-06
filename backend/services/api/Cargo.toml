@@ -29,7 +29,12 @@ dotenvy.workspace = true
 futures.workspace = true
 jsonwebtoken.workspace = true
 hmac = { version = "0.12", features = ["std"] }
-sha2.workspace = true
+# Pinned below the workspace default (0.11): hmac 0.12 depends on the 0.10
+# line of the `digest` crate, and sha2 0.11 implements the newer 0.11 line —
+# using the workspace version here makes HmacSha256::new_from_slice's trait
+# bounds unsatisfiable (Sha256 from two different semver-incompatible sha2
+# releases are two different types as far as trait resolution is concerned).
+sha2 = "0.10"
 hex.workspace = true
 soroban-sdk.workspace = true
 reqwest.workspace = true
@@ -38,6 +43,12 @@ chrono = { version = "0.4", features = ["serde"] }
 lazy_static = "1.4"
 tokio-tungstenite = "0.29"
 prometheus = { version = "0.13", features = ["process"] }
+utoipa = "5"
+deadpool-redis = "0.18"
+subtle = "2"
+
+[dev-dependencies]
+actix-http = "3"
 
 [profile.release]
 opt-level = 3

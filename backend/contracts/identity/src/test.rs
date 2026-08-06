@@ -17,10 +17,19 @@ fn domain_hash(env: &Env, seed: u8) -> BytesN<32> {
 }
 
 fn sign(env: &Env, msg: &BytesN<32>) -> (BytesN<32>, BytesN<64>) {
-    use soroban_sdk::testutils::ed25519::Sign;
-    let kp = soroban_sdk::testutils::ed25519::generate(env);
-    let sig = kp.sign(msg.clone().into());
-    (kp.public_key(), sig)
+    use ed25519_dalek::{Signer, SigningKey};
+    use rand_core::OsRng;
+
+    // Sign the raw hash bytes directly — the contract verifies via
+    // `env.crypto().ed25519_verify(&public_key, &domain_hash.into(), &proof)`
+    // against the bytes as-is, not an XDR-encoded `ScVal` wrapping them (which
+    // is what soroban_sdk's `testutils::ed25519::Sign` trait produces).
+    let kp = SigningKey::generate(&mut OsRng);
+    let sig = kp.sign(&msg.to_array());
+    (
+        BytesN::from_array(env, &kp.verifying_key().to_bytes()),
+        BytesN::from_array(env, &sig.to_bytes()),
+    )
 }
 
 #[test]

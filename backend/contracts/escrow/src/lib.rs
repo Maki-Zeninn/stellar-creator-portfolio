@@ -261,30 +261,14 @@ impl EscrowContract {
         let key = (Symbol::new(&env, "escrow"), escrow_id);
         let mut escrow = env.storage().persistent().get::<(Symbol, u64), EscrowAccount>(&key).expect("Escrow not found");
 
-        require_authorized_party(authorizer == escrow.payer || authorizer == escrow.payee);
-        require_active_escrow(escrow.status == EscrowStatus::Active);
-        assert!(Self::can_release(env.clone(), escrow_id), "Release condition not met");
-
-        // EFFECTS – mutate state before any cross-contract call
-        authorizer.require_auth();
-
-        let key = (Symbol::new(&env, "escrow"), escrow_id);
-        let mut escrow = env
-            .storage()
-            .persistent()
-            .get::<(Symbol, u64), EscrowAccount>(&key)
-            .expect("Escrow not found");
-
         assert!(
             authorizer == escrow.payer || authorizer == escrow.payee,
             "Unauthorized"
         );
         assert!(escrow.status == EscrowStatus::Active, "Escrow not active");
-        assert!(
-            Self::can_release(env.clone(), escrow_id),
-            "Release condition not met"
-        );
+        assert!(Self::can_release(env.clone(), escrow_id), "Release condition not met");
 
+        // EFFECTS – mutate state before any cross-contract call
 
         // Issue #725: Oracle price freshness check before release
         if let Some(oracle_addr) = env.storage().persistent().get::<DataKey, Address>(&DataKey::OracleAddress) {
@@ -299,8 +283,6 @@ impl EscrowContract {
                 panic!("Oracle price feed is stale");
             }
         }
-        TokenClient::new(&env, &escrow.token)
-            .transfer(&env.current_contract_address(), &escrow.payee, &escrow.amount);
 
         escrow.status = EscrowStatus::Released;
         escrow.released_at = Some(env.ledger().timestamp());
@@ -332,13 +314,8 @@ impl EscrowContract {
             .get::<(Symbol, u64), EscrowAccount>(&key)
             .expect("Escrow not found");
 
-        require_authorized_party(authorizer == escrow.payer);
-        require_active_escrow(escrow.status == EscrowStatus::Active);
         assert_eq!(authorizer, escrow.payer, "Only payer can refund");
         assert!(escrow.status == EscrowStatus::Active, "Escrow not active");
-
-        TokenClient::new(&env, &escrow.token)
-            .transfer(&env.current_contract_address(), &escrow.payer, &escrow.amount);
 
         // EFFECTS – mutate state before any cross-contract call
         escrow.status = EscrowStatus::Refunded;

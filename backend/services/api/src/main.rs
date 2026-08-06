@@ -4,7 +4,8 @@ use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::{http, middleware, web, App, HttpMessage, HttpResponse, HttpServer};
 use futures::future::{ok, Ready};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{ConnectOptions, PgPool, postgres::{PgConnectOptions, PgPoolOptions}};
+use std::str::FromStr;
 use std::time::Duration;
 
 mod alerts;
@@ -256,19 +257,6 @@ impl<T> ApiResponse<T> {
 // ==================== Request Models ====================
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct ReviewSubmission {
-    #[serde(rename = "bountyId")]
-    pub bounty_id: String,
-    #[serde(rename = "creatorId")]
-    pub creator_id: String,
-    pub rating: u8,
-    pub title: String,
-    pub body: String,
-    #[serde(rename = "reviewerName")]
-    pub reviewer_name: String,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct EscrowCreateRequest {
     #[serde(rename = "bountyId")]
     pub bounty_id: String,
@@ -382,7 +370,7 @@ async fn health(
         "unhealthy"
     };
 
-    let response_code = if db_connected && rpc_connected {
+    let mut response_code = if db_connected && rpc_connected {
         HttpResponse::Ok()
     } else {
         HttpResponse::ServiceUnavailable()
@@ -767,24 +755,22 @@ async fn get_creator(path: web::Path<String>) -> HttpResponse {
 /// Aggregated reputation and recent reviews for a creator profile.
 async fn get_creator_reputation(
     path: web::Path<String>,
-    pool: web::Data<PgPool>,
+    _pool: web::Data<PgPool>,
 ) -> HttpResponse {
     let creator_id = path.into_inner();
     tracing::info!("Fetching reputation for creator: {}", creator_id);
 
-    reputation::set_database_pool(pool.get_ref().clone());
+    let reviews = database::reviews_for_creator(&creator_id);
+    let aggregation = database::aggregate_reviews(&reviews);
+    let recent_reviews = database::recent_reviews(&reviews, 8);
 
-    let reviews = reputation::fetch_creator_reviews_from_db(&creator_id).await;
-    let aggregation = reputation::fetch_creator_reputation_from_db(&creator_id).await;
-    let recent_reviews = reputation::recent_reviews(&reviews, 8);
-
-    let payload = reputation::CreatorReputationPayload {
+    let payload = database::CreatorReputationPayload {
         creator_id: creator_id.clone(),
         aggregation,
         recent_reviews,
     };
 
-    let response: ApiResponse<reputation::CreatorReputationPayload> =
+    let response: ApiResponse<database::CreatorReputationPayload> =
         ApiResponse::ok(payload, None);
     HttpResponse::Ok()
         .content_type("application/json")
@@ -879,9 +865,9 @@ async fn list_reviews_filtered(
     let limit = filters.limit.unwrap_or(10).clamp(1, 100);
     let paginated_reviews = reputation::paginate_reviews(sorted_reviews, page, limit);
 
-    let overall_aggregation = reputation::aggregate_reviews(&all_reviews);
+    let overall_aggregation = reputation::aggregate_review_list(&all_reviews);
     let filtered_aggregation = if paginated_reviews.total_count != overall_aggregation.total_reviews {
-        Some(reputation::aggregate_reviews(&reputation::filter_reviews(&all_reviews, &filters)))
+        Some(reputation::aggregate_review_list(&reputation::filter_reviews(&all_reviews, &filters)))
     } else {
         None
     };
@@ -901,7 +887,7 @@ async fn list_reviews_filtered(
 
 /// Submit a review after bounty completion.
 async fn submit_review(
-    body: web::Json<ReviewSubmission>,
+    body: web::Json<database::ReviewSubmission>,
 ) -> HttpResponse {
     tracing::info!("Submitting review for creator: {}", body.creator_id);
 
@@ -953,19 +939,12 @@ async fn submit_review(
             .json(resp);
     }
 
-    match reputation::on_review_submitted(
-        &body.bounty_id,
-        &body.creator_id,
-        body.rating,
-        &body.title,
-        &body.body,
-        &body.reviewer_name,
-    ) {
-        Ok(review_id) => {
+    match database::submit_review(body.into_inner()) {
+        Ok(review) => {
             let response: ApiResponse<serde_json::Value> = ApiResponse::ok(
                 serde_json::json!({
-                    "reviewId": review_id,
-                    "creatorId": body.creator_id,
+                    "reviewId": review.id,
+                    "creatorId": review.creator_id,
                     "status": "submitted"
                 }),
                 Some("Review submitted successfully".to_string()),
@@ -974,15 +953,11 @@ async fn submit_review(
                 .content_type("application/json")
                 .json(response)
         }
-        Err(validation_errors) => {
-            let field_errors: Vec<FieldError> = validation_errors
-                .into_iter()
-                .enumerate()
-                .map(|(i, msg)| FieldError {
-                    field: format!("validation_{}", i),
-                    message: msg,
-                })
-                .collect();
+        Err(validation_error) => {
+            let field_errors: Vec<FieldError> = vec![FieldError {
+                field: "validation_0".to_string(),
+                message: validation_error,
+            }];
 
             let resp: ApiResponse<()> = ApiResponse::err(ApiError::with_field_errors(
                 ApiErrorCode::ValidationError,
@@ -1345,6 +1320,15 @@ async fn main() -> std::io::Result<()> {
     let slow_query_threshold_ms =
         parse_u64_env_with_range("SLOW_QUERY_THRESHOLD_MS", 1_000, 10, 300_000);
 
+    // `log_slow_statements` lives on the per-connection options in sqlx 0.8
+    // (it used to be a PoolOptions builder method in earlier versions).
+    let connect_options = PgConnectOptions::from_str(&database_url)
+        .unwrap_or_else(|e| panic!("Invalid DATABASE_URL: {}", e))
+        .log_slow_statements(
+            tracing::log::LevelFilter::Warn,
+            Duration::from_millis(slow_query_threshold_ms),
+        );
+
     tracing::info!("Connecting to database: {}", database_url.replace("stellar_dev_password", "***"));
 
     const DB_MAX_ATTEMPTS: u32 = 5;
@@ -1357,11 +1341,7 @@ async fn main() -> std::io::Result<()> {
             match PgPoolOptions::new()
                 .max_connections(database_max_connections)
                 .idle_timeout(Some(Duration::from_secs(db_pool_idle_timeout_seconds)))
-                .log_slow_statements(
-                    tracing::log::LevelFilter::Warn,
-                    Duration::from_millis(slow_query_threshold_ms),
-                )
-                .connect(&database_url)
+                .connect_with(connect_options.clone())
                 .await
             {
                 Ok(p) => {

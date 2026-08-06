@@ -136,17 +136,17 @@ pub async fn reviews_for_creator(creator_address: &str, pool: Option<&PgPool>) -
             ORDER BY created_at DESC
         "#;
 
-        sqlx::query_as::<_, (u64, String, String, Option<u64>, i16, String, bool, chrono::DateTime<chrono::Utc>)>(query)
+        sqlx::query_as::<_, (i64, String, String, Option<i64>, i16, String, bool, chrono::DateTime<chrono::Utc>)>(query)
             .bind(creator_address)
             .fetch_all(pg_pool)
             .await
             .map(|rows| {
                 rows.into_iter()
                     .map(|(id, creator_addr, reviewer_addr, bounty_id, rating, comment, verified, created_at)| Review {
-                        id,
+                        id: id as u64,
                         creator_address: creator_addr,
                         reviewer_address: reviewer_addr,
-                        bounty_id,
+                        bounty_id: bounty_id.map(|id| id as u64),
                         rating: rating as u8,
                         comment,
                         verified,
@@ -201,17 +201,17 @@ pub async fn recent_reviews(limit: u32, pool: Option<&PgPool>) -> Result<Vec<Rev
             LIMIT $1
         "#;
 
-        sqlx::query_as::<_, (u64, String, String, Option<u64>, i16, String, bool, chrono::DateTime<chrono::Utc>)>(query)
+        sqlx::query_as::<_, (i64, String, String, Option<i64>, i16, String, bool, chrono::DateTime<chrono::Utc>)>(query)
             .bind(limit as i64)
             .fetch_all(pg_pool)
             .await
             .map(|rows| {
                 rows.into_iter()
                     .map(|(id, creator_addr, reviewer_addr, bounty_id, rating, comment, verified, created_at)| Review {
-                        id,
+                        id: id as u64,
                         creator_address: creator_addr,
                         reviewer_address: reviewer_addr,
-                        bounty_id,
+                        bounty_id: bounty_id.map(|id| id as u64),
                         rating: rating as u8,
                         comment,
                         verified,
@@ -248,7 +248,7 @@ pub async fn submit_review(submission: ReviewSubmission, pool: Option<&PgPool>) 
             RETURNING id, creator_address, reviewer_address, bounty_id, rating, comment, verified, created_at
         "#;
 
-        sqlx::query_as::<_, (u64, String, String, Option<u64>, i16, String, bool, chrono::DateTime<chrono::Utc>)>(query)
+        sqlx::query_as::<_, (i64, String, String, Option<i64>, i16, String, bool, chrono::DateTime<chrono::Utc>)>(query)
             .bind(new_review.id as i64)
             .bind(&new_review.creator_address)
             .bind(&new_review.reviewer_address)
@@ -260,7 +260,7 @@ pub async fn submit_review(submission: ReviewSubmission, pool: Option<&PgPool>) 
             .fetch_one(pg_pool)
             .await
             .map(|(id, creator_addr, reviewer_addr, bounty_id, rating, comment, verified, created_at)| Review {
-                id,
+                id: id as u64,
                 creator_address: creator_addr,
                 reviewer_address: reviewer_addr,
                 bounty_id: bounty_id.map(|id| id as u64),
@@ -485,6 +485,165 @@ pub async fn fetch_reputation_with_cache(
 /// Call this whenever a new completed bounty or review is recorded.
 pub fn invalidate_reputation_cache(creator_address: &str) {
     lock_reputation_cache(&REPUTATION_CACHE).remove(creator_address);
+}
+
+// ---------------------------------------------------------------------------
+// Filtered / sorted / paginated review listing (admin + "all reviews" feeds)
+//
+// TODO: this whole section is a stub. `parse_review_filters` ignores its
+// query params and `fetch_all_reviews_from_db` / `get_filtered_creator_reviews_from_db`
+// return in-memory mock data instead of querying Postgres. Sorting,
+// filtering-by-shape and pagination themselves are real, working
+// implementations — only the two DB-facing functions and query-param parsing
+// need to be wired up before this is production-ready.
+// ---------------------------------------------------------------------------
+
+lazy_static::lazy_static! {
+    /// Stashed by `set_database_pool`/`initialize_reputation_system_with_db`
+    /// for the stub DB-facing functions below to use once they're wired up
+    /// to real queries. Not read by anything yet.
+    static ref DB_POOL: Mutex<Option<PgPool>> = Mutex::new(None);
+}
+
+/// Stash the connection pool for later use by the (currently stubbed)
+/// DB-facing functions in this section.
+pub fn set_database_pool(pool: PgPool) {
+    *DB_POOL.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(pool);
+}
+
+/// One-time startup hook. Currently just stores the pool — see the TODO on
+/// this section for what's still missing.
+pub fn initialize_reputation_system_with_db(pool: PgPool) {
+    set_database_pool(pool);
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewSortBy {
+    CreatedAt,
+    Rating,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SortOrder {
+    Asc,
+    Desc,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ReviewFilters {
+    pub sort_by: Option<ReviewSortBy>,
+    pub sort_order: Option<SortOrder>,
+    pub page: Option<u32>,
+    pub limit: Option<u32>,
+}
+
+/// TODO: stub — always returns the default (unfiltered, page 1) filter set,
+/// regardless of what's in `query`. Wire up real query-param parsing
+/// (rating range, verified-only, date range, sortBy/sortOrder/page/limit)
+/// here; return `Err(messages)` for invalid values the way the rest of this
+/// file's validation does.
+pub fn parse_review_filters(
+    _query: &HashMap<String, String>,
+) -> Result<ReviewFilters, Vec<String>> {
+    Ok(ReviewFilters::default())
+}
+
+/// TODO: stub — returns the in-memory seed reviews rather than querying
+/// Postgres. Swap for a real `SELECT * FROM reviews` once this endpoint
+/// needs to reflect real data.
+pub async fn fetch_all_reviews_from_db() -> Vec<Review> {
+    get_mock_reviews()
+}
+
+/// TODO: stub — every review currently passes through unfiltered.
+pub fn filter_reviews(reviews: &[Review], _filters: &ReviewFilters) -> Vec<Review> {
+    reviews.to_vec()
+}
+
+pub fn sort_reviews(reviews: &mut [Review], sort_by: &ReviewSortBy, sort_order: &SortOrder) {
+    reviews.sort_by(|a, b| {
+        let ordering = match sort_by {
+            ReviewSortBy::CreatedAt => a.created_at.cmp(&b.created_at),
+            ReviewSortBy::Rating => a.rating.cmp(&b.rating),
+        };
+        match sort_order {
+            SortOrder::Asc => ordering,
+            SortOrder::Desc => ordering.reverse(),
+        }
+    });
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaginatedReviews {
+    pub reviews: Vec<Review>,
+    pub total_count: u32,
+    pub page: u32,
+    pub limit: u32,
+}
+
+pub fn paginate_reviews(reviews: Vec<Review>, page: u32, limit: u32) -> PaginatedReviews {
+    let total_count = reviews.len() as u32;
+    let start = ((page.max(1) - 1) * limit) as usize;
+    let page_reviews = reviews.into_iter().skip(start).take(limit as usize).collect();
+    PaginatedReviews {
+        reviews: page_reviews,
+        total_count,
+        page,
+        limit,
+    }
+}
+
+/// Sync aggregation over an already-fetched review list — distinct from
+/// `aggregate_reviews` above, which fetches by creator address from the DB.
+/// Used by the "all reviews" / filtered listing endpoints.
+pub fn aggregate_review_list(reviews: &[Review]) -> ReviewAggregation {
+    let total_reviews = reviews.len() as u32;
+    let average_rating = if total_reviews > 0 {
+        reviews.iter().map(|r| r.rating as f64).sum::<f64>() / total_reviews as f64
+    } else {
+        0.0
+    };
+    let mut star_counts = HashMap::new();
+    for rating in 1..=5u8 {
+        star_counts.insert(rating, reviews.iter().filter(|r| r.rating == rating).count() as u32);
+    }
+    ReviewAggregation {
+        creator_address: String::new(),
+        total_reviews,
+        average_rating,
+        star_counts,
+        recent_reviews: reviews.iter().take(3).cloned().collect(),
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FilteredCreatorReputationPayload {
+    pub creator_address: String,
+    pub reviews: PaginatedReviews,
+    pub aggregation: ReviewAggregation,
+}
+
+/// TODO: stub — filters everything from the in-memory seed list by creator
+/// address only; `filters` beyond page/limit are ignored. See the section
+/// TODO above.
+pub async fn get_filtered_creator_reviews_from_db(
+    creator_address: &str,
+    filters: &ReviewFilters,
+) -> FilteredCreatorReputationPayload {
+    let reviews: Vec<Review> = get_mock_reviews()
+        .into_iter()
+        .filter(|r| r.creator_address == creator_address)
+        .collect();
+    let aggregation = aggregate_review_list(&reviews);
+    let page = filters.page.unwrap_or(1).max(1);
+    let limit = filters.limit.unwrap_or(10).clamp(1, 100);
+    FilteredCreatorReputationPayload {
+        creator_address: creator_address.to_string(),
+        reviews: paginate_reviews(reviews, page, limit),
+        aggregation,
+    }
 }
 
 #[cfg(test)]

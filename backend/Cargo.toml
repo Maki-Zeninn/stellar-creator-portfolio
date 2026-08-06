@@ -55,7 +55,12 @@ chrono = { version = "0.4", features = ["serde"] }
 oauth2 = "4"
 
 # Auth
-jsonwebtoken = "10"
+# jsonwebtoken 10 ships with no crypto backend enabled by default — without
+# a feature choice, encode/decode panics at runtime ("Could not automatically
+# determine the process-level CryptoProvider"). `rust_crypto` matches the
+# pure-Rust crypto stack already used elsewhere in this workspace (ed25519-dalek,
+# hmac, sha2) rather than pulling in aws-lc-rs's C build dependency.
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 actix-web-httpauth = "0.8"
 
 # Utilities
