@@ -1,6 +1,6 @@
-# Stellar Backend - Soroban Smart Contracts & Rust Services
+# Tamgora Backend - Soroban Smart Contracts & Rust Services
 
-This directory contains the backend infrastructure for Stellar platform, including Soroban smart contracts for bounties, escrow, and payments on Stellar blockchain, along with Rust-based backend services.
+This directory contains the backend infrastructure for the Tamgora platform, including Soroban smart contracts for bounties, escrow, and payments on Stellar blockchain, along with Rust-based backend services.
 
 ## Architecture
 

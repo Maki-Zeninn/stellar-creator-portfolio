@@ -40,10 +40,10 @@ export async function CreatorHeroSection({ id }: { id: string }) {
             </a>
             <HireMeDialog creatorId={id} creatorName={social.name} skills={creator.skills} />
             <SocialShare
-              title={`Check out ${social.name} on Stellar Creators`}
+              title={`Check out ${social.name} on Tamgora Creators`}
               description={social.title}
               url={`/creators/${id}`}
-              hashtags={['StellarCreators', 'Web3', 'Portfolio']}
+              hashtags={['TamgoraCreators', 'Web3', 'Portfolio']}
             />
           </div>
         </div>

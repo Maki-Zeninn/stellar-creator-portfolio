@@ -8,8 +8,8 @@ import './globals.css';
 export const metadata: Metadata = {
   // Basic metadata
   title: {
-    default: 'Stellar Creator Portfolio',
-    template: '%s | Stellar Creator Portfolio',
+    default: 'Tamgora',
+    template: '%s | Tamgora',
   },
   description:
     'Professional creator portfolio with native app-like experience. Showcase your work, engage with your audience, and build your brand.',
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Stellar Portfolio',
+    title: 'Tamgora',
   },
 
   // Open Graph for social sharing
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://your-portfolio.com',
-    siteName: 'Stellar Creator Portfolio',
-    title: 'Stellar Creator Portfolio',
+    siteName: 'Tamgora',
+    title: 'Tamgora',
     description:
       'Professional creator portfolio with native app-like experience',
     images: [
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Stellar Creator Portfolio',
+        alt: 'Tamgora',
       },
     ],
   },
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
   // Twitter Card
   twitter: {
     card: 'summary_large_image',
-    title: 'Stellar Creator Portfolio',
+    title: 'Tamgora',
     description:
       'Professional creator portfolio with native app-like experience',
     images: ['/twitter-image.png'],
@@ -92,10 +92,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* PWA Meta Tags */}
-        <meta name="application-name" content="Stellar Portfolio" />
+        <meta name="application-name" content="Tamgora" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Stellar Portfolio" />
+        <meta name="apple-mobile-web-app-title" content="Tamgora" />
         <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: dark)" />
 

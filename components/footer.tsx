@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Linkedin, Twitter } from 'lucide-react';
 
 export function Footer() {
@@ -14,14 +13,13 @@ export function Footer() {
           {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <Image
-                src="/stellar-logo.jpg"
-                alt="Stellar"
-                width={32}
-                height={32}
-                className="rounded-lg"
-              />
-              <span className="font-bold text-lg text-foreground">Stellar</span>
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background font-bold text-base"
+              >
+                T
+              </span>
+              <span className="font-bold text-lg text-foreground">Tamgora</span>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               The platform connecting world-class creators with exceptional opportunities.
@@ -92,7 +90,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="border-t border-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <p className="text-xs sm:text-sm text-muted-foreground">
-            &copy; {currentYear} Stellar. All rights reserved.
+            &copy; {currentYear} Tamgora. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <a href="#" className="text-xs sm:text-sm text-muted-foreground hover:text-primary transition-colors">

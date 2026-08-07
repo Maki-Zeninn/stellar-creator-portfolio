@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { Moon, Sun, Menu, X, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
@@ -79,16 +78,14 @@ export function Header() {
         <div className="flex items-center justify-between h-16 transition-smooth">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <Image
-              src="/stellar-logo.jpg"
-              alt="Stellar Logo"
-              width={40}
-              height={40}
-              className="rounded-lg"
-              priority
-            />
+            <span
+              aria-hidden="true"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-foreground text-background font-bold text-lg"
+            >
+              T
+            </span>
             <span className="font-bold text-lg text-foreground hidden sm:inline">
-              Stellar
+              Tamgora
             </span>
           </Link>
 

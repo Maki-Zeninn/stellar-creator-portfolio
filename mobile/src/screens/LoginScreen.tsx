@@ -239,7 +239,7 @@ export function LoginScreen({
           <View style={[styles.logoWrap, { backgroundColor: colors.primary + "18" }]}>
             <Text style={styles.logoText}>✦</Text>
           </View>
-          <Text style={[styles.appName, { color: colors.text }]}>Stellar</Text>
+          <Text style={[styles.appName, { color: colors.text }]}>Tamgora</Text>
           <Text style={[styles.tagline, { color: colors.textSecondary }]}>
             Connect your Stellar wallet to access the creator marketplace
           </Text>
@@ -299,13 +299,13 @@ export function LoginScreen({
 
         {/* Legal note */}
         <Text style={[styles.legal, { color: colors.textTertiary }]}>
-          By connecting, you agree to Stellar's Terms of Service. Your private key never leaves your wallet.
+          By connecting, you agree to Tamgora's Terms of Service. Your private key never leaves your wallet.
         </Text>
 
         {onRegister && (
           <Pressable onPress={onRegister} style={styles.registerLink}>
             <Text style={[styles.registerText, { color: colors.textSecondary }]}>
-              New to Stellar?{" "}
+              New to Tamgora?{" "}
               <Text style={{ color: colors.primary, fontWeight: FontWeight.semibold }}>
                 Create an account
               </Text>

@@ -30,7 +30,7 @@ const testimonials: Testimonial[] = [
     author: 'Sarah Chen',
     role: 'Product Manager, TechStartup',
     quote:
-      'Stellar connected us with incredible designers who transformed our product. The process was seamless and professional.',
+      'Tamgora connected us with incredible designers who transformed our product. The process was seamless and professional.',
     rating: 5,
     featured: true,
     createdAt: '2024-11-12T10:00:00Z',
@@ -168,7 +168,7 @@ export function TestimonialsSection({ featuredOnly = true }: TestimonialsSection
             Loved by Creators &amp; Clients
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            See what industry leaders are saying about Stellar
+            See what industry leaders are saying about Tamgora
           </p>
         </div>
 

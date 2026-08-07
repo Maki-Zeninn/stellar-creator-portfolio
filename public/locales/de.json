@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Stellar"
+    "appName": "Tamgora"
   },
   "languageSwitcher": {
     "label": "Sprache",
@@ -32,13 +32,13 @@
     "heroSubtitle": "Entdecken, engagieren und arbeiten Sie mit herausragenden Creatorinnen und Creatorn in Design, Text, Marketing, Produktmanagement und über 10 weiteren Disziplinen zusammen. Prämien ausschreiben, Freelancer finden und großartige Projekte umsetzen.",
     "browseCreators": "Creator entdecken",
     "postBounty": "Prämie ausschreiben",
-    "statsCreators": "Stellar-Creator",
+    "statsCreators": "Tamgora-Creator",
     "statsProjects": "Großartige Projekte",
     "statsDisciplines": "Nicht-technische Disziplinen",
     "featuredTitle": "Vorgestellte Creator",
     "featuredSubtitle": "Entdecken Sie herausragendes Talent in über 15 Disziplinen – von UX-Design bis Community-Management.",
     "viewAllCreators": "Alle Creator anzeigen",
-    "whyTitle": "Warum Stellar?",
+    "whyTitle": "Warum Tamgora?",
     "whySubtitle": "Die Plattform für nicht-technisches Talent in der Tech-Branche",
     "feature1Title": "Vernetzen & zusammenarbeiten",
     "feature1Body": "Netzwerken Sie mit Branchenführern und finden Sie die passenden Partner für Ihr nächstes Projekt.",
@@ -47,7 +47,7 @@
     "feature3Title": "Premium-Erlebnis",
     "feature3Body": "Präsentieren Sie Ihr Portfolio auf einer professionellen Plattform für Creator.",
     "ctaTitle": "Bereit loszulegen?",
-    "ctaSubtitle": "Schließen Sie sich Tausenden von Creatorinnen, Creatorn und Kundinnen zusammen – perfekte Matches auf Stellar.",
+    "ctaSubtitle": "Schließen Sie sich Tausenden von Creatorinnen, Creatorn und Kundinnen zusammen – perfekte Matches auf Tamgora.",
     "ctaBrowse": "Creator entdecken",
     "ctaPost": "Prämie ausschreiben"
   },

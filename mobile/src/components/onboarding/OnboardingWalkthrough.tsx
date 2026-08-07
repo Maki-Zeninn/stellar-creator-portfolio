@@ -46,7 +46,7 @@ interface WalkthroughStep {
 const STEPS: WalkthroughStep[] = [
   {
     id: '1',
-    title: 'Welcome to Stellar',
+    title: 'Welcome to Tamgora',
     description: 'Connect with exceptional non-technical talent across design, writing, marketing, and 15+ disciplines.',
     icon: '🌟',
     color: '#6366f1',
@@ -82,7 +82,7 @@ const STEPS: WalkthroughStep[] = [
   {
     id: '5',
     title: 'Ready to Start?',
-    description: 'Join thousands of creators building their careers on Stellar. Let\'s get you set up!',
+    description: 'Join thousands of creators building their careers on Tamgora. Let\'s get you set up!',
     icon: '🚀',
     color: '#f59e0b',
   },

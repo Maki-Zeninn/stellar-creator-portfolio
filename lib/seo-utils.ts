@@ -17,10 +17,10 @@ export function generateMetadata(config: SEOConfig): Metadata {
     description,
     keywords = [],
     image = '/og-image.png',
-    url = 'https://stellar.app',
-    author = 'Stellar',
+    url = 'https://tamgora.app',
+    author = 'Tamgora',
     type = 'website',
-    twitterHandle = '@stellarcreators',
+    twitterHandle = '@tamgoracreators',
   } = config;
 
   return {
@@ -58,7 +58,7 @@ export function generateMetadata(config: SEOConfig): Metadata {
 }
 
 export const SEO_DEFAULTS = {
-  siteTitle: 'Stellar - Creator Marketplace & Bounty Platform',
+  siteTitle: 'Tamgora - Creator Marketplace & Bounty Platform',
   siteDescription:
     'Connect with world-class creators and find incredible talent across 15+ disciplines. Post bounties, hire freelancers, and build amazing projects.',
   keywords: [
@@ -70,8 +70,8 @@ export const SEO_DEFAULTS = {
     'content creation',
     'project showcase',
   ],
-  twitterHandle: '@stellarcreators',
-  ogImage: 'https://stellar.app/og-image.png',
+  twitterHandle: '@tamgoracreators',
+  ogImage: 'https://tamgora.app/og-image.png',
 };
 
 // Structured data for rich snippets
@@ -79,18 +79,18 @@ export function generateOrganizationSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'Stellar',
+    name: 'Tamgora',
     description: SEO_DEFAULTS.siteDescription,
-    url: 'https://stellar.app',
-    logo: 'https://stellar.app/stellar-logo.jpg',
+    url: 'https://tamgora.app',
+    logo: 'https://tamgora.app/icon.svg',
     sameAs: [
-      'https://twitter.com/stellarcreators',
-      'https://linkedin.com/company/stellar',
+      'https://twitter.com/tamgoracreators',
+      'https://linkedin.com/company/tamgora',
     ],
     contactPoint: {
       '@type': 'ContactPoint',
       contactType: 'Customer Support',
-      email: 'support@stellar.app',
+      email: 'support@tamgora.app',
     },
   };
 }

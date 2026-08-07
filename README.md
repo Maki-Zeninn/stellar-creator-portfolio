@@ -1,4 +1,4 @@
-# Stellar Creator Portfolio
+# Tamgora
 
 A full-stack platform connecting non-technical tech professionals (designers, writers, marketers, PMs) with bounties, clients, and collaborators — powered by Stellar/Soroban smart contracts.
 

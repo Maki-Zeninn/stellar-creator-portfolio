@@ -127,7 +127,7 @@ export async function authenticateBiometric(): Promise<BiometricAuthResult> {
 
   try {
     const authResult = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Authenticate to access Stellar",
+      promptMessage: "Authenticate to access Tamgora",
       cancelLabel: "Cancel",
       fallbackLabel: "Use passcode",
       disableDeviceFallback: false,

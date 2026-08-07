@@ -75,7 +75,7 @@ const specialBadgeConfig: Record<SpecialBadge, { icon: React.ElementType; label:
     icon: Award,
     label: 'Certified',
     color: 'text-purple-500',
-    description: 'Passed Stellar skills certification',
+    description: 'Passed Tamgora skills certification',
   },
   'rising-star': {
     icon: TrendingUp,

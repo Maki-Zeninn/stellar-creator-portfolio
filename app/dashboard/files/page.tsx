@@ -5,7 +5,7 @@ import { IpfsStorageBrowser } from '@/components/ipfs/ipfs-storage-browser';
 import { FileBrowserSkeleton } from '@/components/ui/skeleton-group';
 
 export const metadata = {
-  title: 'Decentralized Files | Stellar',
+  title: 'Decentralized Files | Tamgora',
   description: 'Browse and pin files to IPFS decentralized storage',
 };
 

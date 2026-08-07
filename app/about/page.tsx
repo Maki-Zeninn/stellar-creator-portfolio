@@ -50,7 +50,7 @@ export default function AboutPage() {
         <section className="border-b border-border bg-muted/30 py-16 sm:py-24">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
-              About Stellar
+              About Tamgora
             </h1>
             <p className="text-xl text-muted-foreground">
               We're building the world's premier platform for connecting exceptional creators with meaningful opportunities.
@@ -65,7 +65,7 @@ export default function AboutPage() {
               <div>
                 <h2 className="text-3xl font-bold text-foreground mb-6">Our Mission</h2>
                 <p className="text-lg text-muted-foreground leading-relaxed mb-4">
-                  Stellar exists to empower world-class creators and connect them with exciting opportunities. We believe exceptional work deserves exceptional recognition.
+                  Tamgora exists to empower world-class creators and connect them with exciting opportunities. We believe exceptional work deserves exceptional recognition.
                 </p>
                 <p className="text-lg text-muted-foreground leading-relaxed">
                   By building a curated community of talented designers, writers, and content creators, we're creating a platform where creativity thrives and collaborations flourish.
@@ -167,7 +167,7 @@ export default function AboutPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="text-5xl font-bold text-primary mb-2">4+</div>
-                <p className="text-muted-foreground">Stellar Creators</p>
+                <p className="text-muted-foreground">Tamgora Creators</p>
               </div>
               <div className="text-center">
                 <div className="text-5xl font-bold text-primary mb-2">30+</div>

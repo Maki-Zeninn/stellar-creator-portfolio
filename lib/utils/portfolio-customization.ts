@@ -52,8 +52,8 @@ export interface PortfolioCustomization {
 export const THEMES: PortfolioTheme[] = [
   {
     id: 'default',
-    name: 'Stellar',
-    description: 'The classic Stellar look',
+    name: 'Tamgora',
+    description: 'The classic Tamgora look',
     preview: 'linear-gradient(135deg, oklch(0.35 0.15 250), oklch(0.6 0.15 200))',
     vars: {
       primary: 'oklch(0.35 0.15 250)',

@@ -34,7 +34,7 @@ export default function FreelancersPage() {
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 text-balance">
-                Hire Stellar Freelancers
+                Hire Tamgora Freelancers
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-balance">
                 Find expert freelancers across design, writing, content creation, marketing, and more.
@@ -161,7 +161,7 @@ export default function FreelancersPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-                Why Hire from Stellar?
+                Why Hire from Tamgora?
               </h2>
             </div>
 
@@ -205,7 +205,7 @@ export default function FreelancersPage() {
               Can't find what you need?
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              Post your project on Stellar and let freelancers come to you.
+              Post your project on Tamgora and let freelancers come to you.
             </p>
             <Link href="/bounties">
               <Button size="lg" className="group">

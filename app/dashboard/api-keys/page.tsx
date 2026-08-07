@@ -1,7 +1,7 @@
 import { ApiKeysManager } from "@/components/dashboard/api-keys-manager";
 
 export const metadata = {
-  title: "API Keys | Stellar Creators",
+  title: "API Keys | Tamgora Creators",
   description: "Manage developer API keys for third-party integrations",
 };
 
