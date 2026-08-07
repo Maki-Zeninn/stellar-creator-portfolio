@@ -1,24 +1,5 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    @media (prefers-color-scheme: light) {
-      .background { fill: black; }
-      .foreground { fill: white; }
-    }
-    @media (prefers-color-scheme: dark) {
-      .background { fill: white; }
-      .foreground { fill: black; }
-    }
-  </style>
-  <g clip-path="url(#clip0_tamgora_t)">
-    <rect class="background" width="180" height="180" rx="37" />
-    <g style="transform: scale(95%); transform-origin: center">
-      <rect class="foreground" x="42" y="48" width="96" height="20" rx="7" />
-      <rect class="foreground" x="80" y="48" width="20" height="84" rx="7" />
-    </g>
-  </g>
-  <defs>
-    <clipPath id="clip0_tamgora_t">
-      <rect width="180" height="180" fill="white" />
-    </clipPath>
-  </defs>
+  <rect width="180" height="180" rx="40" fill="#6166F1" />
+  <rect x="44" y="49" width="92" height="23" rx="11.5" fill="white" />
+  <rect x="78.5" y="49" width="23" height="82" rx="11.5" fill="white" />
 </svg>

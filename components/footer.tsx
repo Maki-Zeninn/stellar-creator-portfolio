@@ -13,12 +13,17 @@ export function Footer() {
           {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <span
+              <svg
                 aria-hidden="true"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background font-bold text-base"
+                viewBox="0 0 180 180"
+                width="32"
+                height="32"
+                className="shrink-0 rounded-lg"
               >
-                T
-              </span>
+                <rect width="180" height="180" rx="40" fill="#6166F1" />
+                <rect x="44" y="49" width="92" height="23" rx="11.5" fill="white" />
+                <rect x="78.5" y="49" width="23" height="82" rx="11.5" fill="white" />
+              </svg>
               <span className="font-bold text-lg text-foreground">Tamgora</span>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">

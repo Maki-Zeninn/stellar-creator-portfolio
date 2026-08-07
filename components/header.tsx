@@ -78,12 +78,17 @@ export function Header() {
         <div className="flex items-center justify-between h-16 transition-smooth">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <span
+            <svg
               aria-hidden="true"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-foreground text-background font-bold text-lg"
+              viewBox="0 0 180 180"
+              width="40"
+              height="40"
+              className="shrink-0 rounded-lg"
             >
-              T
-            </span>
+              <rect width="180" height="180" rx="40" fill="#6166F1" />
+              <rect x="44" y="49" width="92" height="23" rx="11.5" fill="white" />
+              <rect x="78.5" y="49" width="23" height="82" rx="11.5" fill="white" />
+            </svg>
             <span className="font-bold text-lg text-foreground hidden sm:inline">
               Tamgora
             </span>
