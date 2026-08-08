@@ -28,6 +28,7 @@ import { SkillCombobox } from "@/components/ui/skill-combobox";
 import { CreatorCard } from "@/components/cards/creator-card";
 import { creators, bounties } from "@/lib/services/creators-data";
 import { trackEvent, trackConversion } from "@/lib/analytics/analytics";
+import { isValidStellarAddress } from "@/lib/utils/stellar-address";
 
 const TOTAL_STEPS = 3;
 
@@ -35,17 +36,30 @@ const roleSchema = z.object({
   role: z.enum(["CREATOR", "CLIENT"]),
 });
 
+// Optional at signup on purpose — pasting an address you don't yet have
+// shouldn't block onboarding. Format/checksum only; ownership is proven
+// later, when a real wallet connection signs a payout.
+const walletAddressField = z
+  .string()
+  .optional()
+  .or(z.literal(""))
+  .refine((v) => !v || isValidStellarAddress(v), {
+    message: "That doesn't look like a valid Stellar address (starts with G, 56 characters)",
+  });
+
 const creatorSchema = z.object({
   displayName: z.string().min(2).max(30),
   discipline: z.string().min(1, "Select a discipline"),
   skills: z.array(z.string()).min(1, "Add at least one skill").max(5),
   avatar: z.string().url().optional().or(z.literal("")),
+  walletAddress: walletAddressField,
 });
 
 const clientSchema = z.object({
   companyName: z.string().min(2).max(80),
   projectType: z.string().min(1),
   budgetRange: z.string().min(1),
+  walletAddress: walletAddressField,
 });
 
 const DISCIPLINES = ["Design", "Development", "Writing", "Marketing", "Video"];
@@ -65,12 +79,12 @@ export function OnboardingWizard() {
 
   const creatorForm = useForm<z.infer<typeof creatorSchema>>({
     resolver: zodResolver(creatorSchema),
-    defaultValues: { displayName: "", discipline: "", skills: [], avatar: "" },
+    defaultValues: { displayName: "", discipline: "", skills: [], avatar: "", walletAddress: "" },
   });
 
   const clientForm = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
-    defaultValues: { companyName: "", projectType: "", budgetRange: "" },
+    defaultValues: { companyName: "", projectType: "", budgetRange: "", walletAddress: "" },
   });
 
   const persistStep = useCallback(async (nextStep: number, extra?: Record<string, unknown>) => {
@@ -120,6 +134,14 @@ export function OnboardingWizard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ step: 3, data: profile, role }),
     });
+    const walletAddress = profile.walletAddress;
+    if (typeof walletAddress === "string" && walletAddress.trim()) {
+      await fetch("/api/user/wallet-address", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress }),
+      });
+    }
     trackEvent("onboarding_step_complete", { step: 2, role });
     setStep(3);
   };
@@ -266,6 +288,23 @@ export function OnboardingWizard() {
                 </FormItem>
               )}
             />
+            <FormField
+              control={creatorForm.control}
+              name="walletAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stellar wallet address (optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="G..." {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Where you'll receive bounty payouts. You can add or change this later in
+                    settings — connecting a wallet is only needed when a payment actually goes out.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={() => goToStep(1)}>Back</Button>
               <Button type="submit">Continue</Button>
@@ -331,6 +370,23 @@ export function OnboardingWizard() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={clientForm.control}
+              name="walletAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Stellar wallet address (optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="G..." {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Where you'll fund bounties from. You can add or change this later in settings
+                    — connecting a wallet is only needed when you actually post/fund a bounty.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

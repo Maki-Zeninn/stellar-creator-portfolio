@@ -1,7 +1,9 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { upsertOAuthUser } from '@/lib/auth/oauth-user';
 
 // Legacy scheme (pre-fix): every account shared this one hardcoded salt,
 // which defeats the point of salting. Kept only so accounts hashed before
@@ -72,8 +74,41 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    // Only registered when real credentials are configured, so a missing
+    // GOOGLE_CLIENT_ID doesn't surface a "Continue with Google" button that
+    // can't actually work.
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
+    // Google doesn't go through `authorize()` above, so it never gets our
+    // internal user id/role/onboarding state. Look up (or create, on first
+    // sign-in) the matching User row and graft those fields onto `user`
+    // here — `jwt` below then treats both providers identically.
+    async signIn({ user, account }) {
+      if (account?.provider !== 'google') return true;
+      if (!user.email) return false;
+
+      const dbUser = await upsertOAuthUser({
+        email: user.email,
+        name: user.name,
+        image: user.image,
+      });
+
+      user.id = dbUser.id;
+      (user as { role?: string }).role = dbUser.role;
+      (user as { emailVerified?: string | null }).emailVerified =
+        dbUser.emailVerified?.toISOString() ?? null;
+      (user as { onboardingCompleted?: boolean }).onboardingCompleted =
+        !!dbUser.onboardingCompletedAt;
+      return true;
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;

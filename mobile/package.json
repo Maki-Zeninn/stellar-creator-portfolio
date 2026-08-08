@@ -1,5 +1,5 @@
 {
-  "name": "stellar-mobile",
+  "name": "tamgora-mobile",
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
@@ -40,6 +40,9 @@
 
     "@signalapp/libsignal-client":       "^0.69.1",
     "expo-secure-store":                 "~13.0.0",
+    "expo-auth-session":                 "~5.5.2",
+    "expo-web-browser":                  "~13.0.3",
+    "expo-crypto":                       "~13.0.2",
 
     "onnxruntime-react-native":          "^1.18.0",
     "react-native-fs":                   "^2.20.0",
