@@ -45,8 +45,10 @@ export function ApiKeysManager() {
   }, [loadKeys]);
 
   const toggleScope = (scope: string) => {
-    setScopes((prev) =>
-      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
+    setScopes((prevScopes) =>
+      prevScopes.includes(scope)
+        ? prevScopes.filter((existingScope) => existingScope !== scope)
+        : [...prevScopes, scope],
     );
   };
 
