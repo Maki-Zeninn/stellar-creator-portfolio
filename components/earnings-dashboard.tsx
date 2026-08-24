@@ -12,11 +12,12 @@ import {
   computeSummary,
   type EarningTransaction,
 } from '@/lib/earnings-data'
+import { formatCurrency } from '@/lib/utils'
 
 const PAGE_SIZE = 5
 
 function fmt(usd: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(usd)
+  return formatCurrency(usd, 'USD', 2)
 }
 
 // ── CSV export ────────────────────────────────────────────────────────────────

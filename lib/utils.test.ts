@@ -154,4 +154,12 @@ describe('truncate', () => {
   it('does not truncate at exact length', () => {
     expect(truncate('hello', 5)).toBe('hello');
   });
+
+  it('handles an empty string', () => {
+    expect(truncate('', 5)).toBe('');
+  });
+
+  it('handles maxLength of zero', () => {
+    expect(truncate('hello', 0)).toBe('…');
+  });
 });
