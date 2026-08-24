@@ -56,8 +56,6 @@ export function useSyncScheduler(options: SyncSchedulerOptions): SyncStatus {
       return;
     }
 
-    let intervalId: NodeJS.Timeout;
-
     const performSync = async () => {
       setSyncStatus('syncing');
       try {
@@ -75,7 +73,7 @@ export function useSyncScheduler(options: SyncSchedulerOptions): SyncStatus {
     };
 
     performSync();
-    intervalId = setInterval(performSync, syncIntervalMs);
+    const intervalId = setInterval(performSync, syncIntervalMs);
 
     return () => clearInterval(intervalId);
   }, [isOnline, apiBaseUrl, accessToken, syncIntervalMs]);

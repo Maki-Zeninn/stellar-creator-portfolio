@@ -12,11 +12,11 @@ export function cn(...inputs: ClassValue[]) {
  * @example formatCurrency(3000) // "$3,000"
  * @example formatCurrency(1500, 'EUR') // "€1,500"
  */
-export function formatCurrency(amount: number, currency = 'USD'): string {
+export function formatCurrency(amount: number, currency = 'USD', maximumFractionDigits = 0): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
-    maximumFractionDigits: 0,
+    maximumFractionDigits,
   }).format(amount);
 }
 
@@ -91,14 +91,32 @@ export function truncate(str: string, maxLength: number): string {
 }
 
 /**
- * Convert a string into a URL-friendly slug.
- * Assumes `input` is plain text (not already-encoded); non-alphanumeric
- * characters are collapsed into single hyphens and the result is lowercased.
+ * Format a byte count as a human-readable file size (e.g. "4.2 MB").
+ * Assumes `bytes` is a non-negative integer; base-1024 units (KB/MB/GB),
+ * not base-1000, matching how OS file browsers typically display size.
  */
-export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / Math.pow(1024, exponent);
+  return `${exponent === 0 ? value : value.toFixed(1)} ${units[exponent]}`;
+}
+
+/**
+ * Parse a raw bounty status string into a normalized status label.
+ * Assumes `status` is one of the known lowercase/snake_case values used by
+ * the bounty API; anything else falls back to "Unknown" rather than throwing,
+ * since this is used directly in UI rendering.
+ */
+export function parseBountyStatus(status: string): string {
+  const map: Record<string, string> = {
+    open: 'Open',
+    in_progress: 'In Progress',
+    submitted: 'Submitted',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+    expired: 'Expired',
+  };
+  return map[status?.toLowerCase()] ?? 'Unknown';
 }
