@@ -195,7 +195,7 @@ export function OnboardingWizard() {
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                     {(["CREATOR", "CLIENT"] as const).map((r) => (
                       <button
                         key={r}

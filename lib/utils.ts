@@ -12,11 +12,11 @@ export function cn(...inputs: ClassValue[]) {
  * @example formatCurrency(3000) // "$3,000"
  * @example formatCurrency(1500, 'EUR') // "€1,500"
  */
-export function formatCurrency(amount: number, currency = 'USD'): string {
+export function formatCurrency(amount: number, currency = 'USD', maximumFractionDigits = 0): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
-    maximumFractionDigits: 0,
+    maximumFractionDigits,
   }).format(amount);
 }
 
