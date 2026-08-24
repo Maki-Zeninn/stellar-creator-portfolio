@@ -147,8 +147,12 @@ export default function CreatorsPage() {
               </>
             ) : (
               <div className="text-center py-12">
-                <p className="text-lg text-muted-foreground mb-4">
-                  No creators found in this category.
+                <p className="text-lg font-medium text-foreground mb-1">
+                  No creators here yet
+                </p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Nobody in the &ldquo;{selectedDiscipline}&rdquo; category has joined
+                  yet — try browsing all creators instead.
                 </p>
                 <Button
                   variant="outline"

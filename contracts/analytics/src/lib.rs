@@ -51,3 +51,27 @@ impl AnalyticsContract {
         result
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use soroban_sdk::testutils::Ledger;
+
+    #[test]
+    fn record_and_get_event_happy_path() {
+        let env = Env::default();
+        let contract_id = env.register(AnalyticsContract, ());
+        let client = AnalyticsContractClient::new(&env, &contract_id);
+
+        env.ledger().with_mut(|li| li.timestamp = 12345);
+
+        let event_type = String::from_str(&env, "bounty_created");
+        let recorded = client.record_event(&1, &event_type);
+        assert!(recorded);
+
+        let fetched = client.get_event(&1).unwrap();
+        assert_eq!(fetched.event_id, 1);
+        assert_eq!(fetched.timestamp, 12345);
+        assert_eq!(fetched.event_type, event_type);
+    }
+}
