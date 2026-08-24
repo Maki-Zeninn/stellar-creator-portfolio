@@ -89,3 +89,16 @@ export function formatExperience(years?: number): string {
 export function truncate(str: string, maxLength: number): string {
   return str.length <= maxLength ? str : `${str.slice(0, maxLength)}…`;
 }
+
+/**
+ * Convert a string into a URL-friendly slug.
+ * Assumes `input` is plain text (not already-encoded); non-alphanumeric
+ * characters are collapsed into single hyphens and the result is lowercased.
+ */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
