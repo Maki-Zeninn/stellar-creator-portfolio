@@ -6,6 +6,7 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { CreatorCard } from '@/components/cards/creator-card';
 import { CardSkeletonGrid } from '@/components/skeletons/card-skeleton';
+import { EmptyState } from '@/components/common/empty-state';
 import { Button } from '@/components/ui/button';
 import { creators, disciplines } from '@/lib/services/creators-data';
 import { ArrowRight, Search, Star } from 'lucide-react';
@@ -105,20 +106,18 @@ export default function FreelancersPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16">
-                  <p className="text-lg text-muted-foreground mb-4">
-                    No freelancers match your search.
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
+                <EmptyState
+                  icon={Search}
+                  title="No freelancers match your search"
+                  description="Try adjusting your filters or search terms to find the perfect freelancer."
+                  action={{
+                    label: 'Clear Filters',
+                    onClick: () => {
                       setSelectedDiscipline('All');
                       setSearchQuery('');
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
+                    },
+                  }}
+                />
               )}
             </div>
           </div>
