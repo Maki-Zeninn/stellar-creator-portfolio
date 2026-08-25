@@ -120,3 +120,17 @@ export function parseBountyStatus(status: string): string {
   };
   return map[status?.toLowerCase()] ?? 'Unknown';
 }
+
+/**
+ * Generate avatar initials from a name (up to 2 characters, uppercase).
+ * @example getAvatarInitials('John Doe') // "JD"
+ * @example getAvatarInitials('Sarah') // "S"
+ */
+export function getAvatarInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
