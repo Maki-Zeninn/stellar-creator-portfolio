@@ -50,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.74.0
         with:
           components: clippy
       - name: Rust Cache
@@ -67,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install Rust & Soroban
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.74.0
       - name: Test Contracts
         run: cd backend && cargo test --all-features
 
