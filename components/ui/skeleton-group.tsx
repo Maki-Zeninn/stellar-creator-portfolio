@@ -101,6 +101,54 @@ export function UserTableSkeleton({ rows = 8 }: { rows?: number }) {
   );
 }
 
+/**
+ * Skeleton for the API keys dashboard.
+ *
+ * Mirrors the real layout — the "Create API key" form above, the key list
+ * below — so the page does not reflow when the data arrives.
+ */
+export function ApiKeysSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="animate-pulse space-y-8" role="status" aria-busy="true">
+      {/* Create API key form */}
+      <section className="rounded-lg border p-6 space-y-4">
+        <div className="h-6 bg-muted rounded w-40" />
+        <div className="space-y-2">
+          <div className="h-4 bg-muted rounded w-16" />
+          <div className="h-10 bg-muted rounded w-full" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-muted rounded w-20" />
+          <div className="flex gap-4">
+            <div className="h-6 bg-muted rounded w-28" />
+            <div className="h-6 bg-muted rounded w-32" />
+          </div>
+        </div>
+        <div className="h-10 bg-muted rounded w-36" />
+      </section>
+
+      {/* Existing keys */}
+      <section className="space-y-4">
+        <div className="h-6 bg-muted rounded w-36" />
+        {Array.from({ length: rows }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-lg border p-4 flex items-center justify-between gap-4"
+          >
+            <div className="space-y-2 flex-1">
+              <div className="h-4 bg-muted rounded w-1/3" />
+              <div className="h-3 bg-muted rounded w-1/2" />
+            </div>
+            <div className="h-8 bg-muted rounded w-20 shrink-0" />
+          </div>
+        ))}
+      </section>
+
+      <span className="sr-only">Loading API keys…</span>
+    </div>
+  );
+}
+
 /** Skeleton for the IPFS file browser */
 export function FileBrowserSkeleton() {
   return (

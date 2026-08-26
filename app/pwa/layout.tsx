@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { ReactNode } from 'react';
-// Commenting out missing PWA components to pass baseline checks
-// import PWAHead from '@/components/pwa/pwa-head';
-// import PWAProvider from '@/components/pwa/pwa-provider';
 import './globals.css';
+
+// NOTE: components/pwa/ (PWAHead, PWAProvider) does not exist in this repo.
+// The PWA meta tags and manifest link below are written out directly instead;
+// wire the components in here if they are ever added.
 
 export const metadata: Metadata = {
   // Basic metadata
@@ -115,15 +116,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
 
-        {/* PWA Head Component - Commented out due to missing file */}
-        {/* <PWAHead /> */}
       </head>
-      <body>
-        {/* PWAProvider - Commented out due to missing file */}
-        {/* <PWAProvider> */}
-          {children}
-        {/* </PWAProvider> */}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

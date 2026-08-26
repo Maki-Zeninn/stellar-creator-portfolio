@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trackEvent } from "@/lib/analytics/analytics";
+import { ApiKeysSkeleton } from "@/components/ui/skeleton-group";
 
 interface ApiKeyRecord {
   id: string;
@@ -80,7 +81,7 @@ export function ApiKeysManager() {
   };
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading API keys…</p>;
+    return <ApiKeysSkeleton />;
   }
 
   return (
