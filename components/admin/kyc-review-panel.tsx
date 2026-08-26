@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ShieldCheck, ShieldX } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface KYCSubmissionRow {
   id: string;
@@ -127,7 +128,7 @@ export function KYCReviewPanel() {
                     <td className="px-4 py-3 text-muted-foreground">{s.userEmail}</td>
                     <td className="px-4 py-3">{s.documentType}</td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(s.uploadedAt).toLocaleDateString()}
+                      {formatDate(s.uploadedAt, 'default')}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={STATUS_VARIANT[s.status]}>{s.status}</Badge>

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, Upload, Download, Pin, Trash2, Eye, Copy, ExternalLink } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface IPFSFile {
   cid: string;
@@ -125,16 +126,6 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
 interface FileListProps {
   files: IPFSFile[];
   loading: boolean;
@@ -187,7 +178,7 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                   {file.pinned && <Badge variant="secondary" className="text-xs">Pinned</Badge>}
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>{formatBytes(file.size)} • {formatDate(file.uploadedAt)}</p>
+                  <p>{formatBytes(file.size)} • {formatDate(file.uploadedAt, 'date-time')}</p>
                   {file.description && (
                     <p className="text-xs">{file.description}</p>
                   )}
