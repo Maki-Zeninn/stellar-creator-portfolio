@@ -8,6 +8,7 @@ import {
   formatRating,
   formatExperience,
   truncate,
+  parseBountyStatus,
 } from './utils';
 
 describe('formatCurrency', () => {
@@ -183,5 +184,77 @@ describe('truncate', () => {
 
   it('handles maxLength of zero', () => {
     expect(truncate('hello', 0)).toBe('…');
+  });
+});
+
+describe('parseBountyStatus', () => {
+  describe('valid status strings', () => {
+    it('parses "open" status', () => {
+      expect(parseBountyStatus('open')).toBe('Open');
+    });
+
+    it('parses "in_progress" status', () => {
+      expect(parseBountyStatus('in_progress')).toBe('In Progress');
+    });
+
+    it('parses "submitted" status', () => {
+      expect(parseBountyStatus('submitted')).toBe('Submitted');
+    });
+
+    it('parses "completed" status', () => {
+      expect(parseBountyStatus('completed')).toBe('Completed');
+    });
+
+    it('parses "cancelled" status', () => {
+      expect(parseBountyStatus('cancelled')).toBe('Cancelled');
+    });
+
+    it('parses "expired" status', () => {
+      expect(parseBountyStatus('expired')).toBe('Expired');
+    });
+  });
+
+  describe('case insensitivity', () => {
+    it('handles uppercase status', () => {
+      expect(parseBountyStatus('OPEN')).toBe('Open');
+    });
+
+    it('handles mixed case status', () => {
+      expect(parseBountyStatus('In_Progress')).toBe('In Progress');
+    });
+
+    it('handles fully uppercase "COMPLETED"', () => {
+      expect(parseBountyStatus('COMPLETED')).toBe('Completed');
+    });
+
+    it('handles mixed case "Expired"', () => {
+      expect(parseBountyStatus('Expired')).toBe('Expired');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns "Unknown" for empty string', () => {
+      expect(parseBountyStatus('')).toBe('Unknown');
+    });
+
+    it('returns "Unknown" for invalid status', () => {
+      expect(parseBountyStatus('invalid_status')).toBe('Unknown');
+    });
+
+    it('returns "Unknown" for random string', () => {
+      expect(parseBountyStatus('foobar')).toBe('Unknown');
+    });
+
+    it('returns "Unknown" for whitespace-only string', () => {
+      expect(parseBountyStatus('   ')).toBe('Unknown');
+    });
+
+    it('handles null gracefully', () => {
+      expect(parseBountyStatus(null as any)).toBe('Unknown');
+    });
+
+    it('handles undefined gracefully', () => {
+      expect(parseBountyStatus(undefined as any)).toBe('Unknown');
+    });
   });
 });
