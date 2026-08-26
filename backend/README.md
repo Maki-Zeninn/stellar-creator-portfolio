@@ -262,10 +262,12 @@ Indexes Soroban contract events for real-time updates.
    rustup update
    ```
 
-2. **Install Soroban CLI**
+2. **Install Stellar CLI (includes Soroban CLI)**
    ```bash
-   cargo install stellar-cli --locked
+   cargo install --locked stellar-cli
+   stellar --version  # verify: should show v27.0.0 or higher
    ```
+   The `--locked` flag ensures reproducible builds by using the exact dependency versions from the lockfile.
 
 3. **Clone and build**
    ```bash

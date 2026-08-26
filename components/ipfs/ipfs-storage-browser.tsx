@@ -85,25 +85,25 @@ class MockIPFSClient {
 
   async deleteFile(cid: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 500));
-    this.files = this.files.filter(f => f.cid !== cid);
+    this.files = this.files.filter(ipfsFile => ipfsFile.cid !== cid);
   }
 
   async pinFile(cid: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300));
-    const file = this.files.find(f => f.cid === cid);
+    const file = this.files.find(ipfsFile => ipfsFile.cid === cid);
     if (file) file.pinned = true;
   }
 
   async unpinFile(cid: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300));
-    const file = this.files.find(f => f.cid === cid);
+    const file = this.files.find(ipfsFile => ipfsFile.cid === cid);
     if (file) file.pinned = false;
   }
 
   getStats(): IPFSStats {
     const totalFiles = this.files.length;
-    const totalSize = this.files.reduce((sum, f) => sum + f.size, 0);
-    const pinnedFiles = this.files.filter(f => f.pinned).length;
+    const totalSize = this.files.reduce((sum, ipfsFile) => sum + ipfsFile.size, 0);
+    const pinnedFiles = this.files.filter(ipfsFile => ipfsFile.pinned).length;
     
     return {
       totalFiles,
@@ -119,10 +119,10 @@ const ipfsClient = new MockIPFSClient();
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
-  const k = 1024;
+  const bytesPerUnit = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const unitIndex = Math.floor(Math.log(bytes) / Math.log(bytesPerUnit));
+  return parseFloat((bytes / Math.pow(bytesPerUnit, unitIndex)).toFixed(2)) + ' ' + sizes[unitIndex];
 }
 
 function formatDate(dateString: string): string {
@@ -155,8 +155,8 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
   if (loading) {
     return (
       <div className="space-y-3">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="animate-pulse">
+        {[1, 2, 3].map(skeletonIndex => (
+          <div key={skeletonIndex} className="animate-pulse">
             <div className="h-20 bg-muted rounded-lg"></div>
           </div>
         ))}
