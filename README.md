@@ -88,22 +88,75 @@ Network passphrase: `Test SDF Network ; September 2015`
 
 ```bash
 pnpm install
-cp .env.example .env.local   # fill in required values
+cp .env.example .env.local
 pnpm dev                      # http://localhost:3000
 pnpm build                    # production build
 ```
 
-### Required environment variables
+### Environment variables
 
-| Variable | Description |
+`.env.example` holds around 70 variables covering every integration the project
+can use. **You do not need most of them to run the app locally.** Copy it, then
+fill in the five below; everything else can stay at its placeholder until you
+touch the feature that needs it.
+
+#### The five you must set
+
+| Variable | What to put in it |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string (PgBouncer pooler) |
-| `DIRECT_DATABASE_URL` | Direct Postgres URL (Prisma migrate only) |
-| `NEXTAUTH_SECRET` | Random secret for NextAuth |
-| `NEXTAUTH_URL` | App URL (http://localhost:3000 in dev) |
-| `NEXT_PUBLIC_STELLAR_NETWORK` | `testnet` or `mainnet` |
+| `DATABASE_URL` | Postgres connection string used for runtime queries. Against the bundled Docker Postgres: `postgresql://postgres:postgres@localhost:6432/stellar_portfolio?schema=public&pgbouncer=true&connection_limit=1` |
+| `DIRECT_DATABASE_URL` | Same database, **direct port, no pooler** — Prisma Migrate only: `postgresql://postgres:postgres@localhost:5432/stellar_portfolio?schema=public` |
+| `NEXTAUTH_SECRET` | Any high-entropy string. Generate one with the command below. |
+| `NEXTAUTH_URL` | `http://localhost:3000` in development. Must match the origin you actually browse to, or OAuth callbacks fail. |
+| `NEXT_PUBLIC_STELLAR_NETWORK` | `testnet` for local work. Only set `mainnet` when deploying against real funds. |
 
-See `.env.example` for the full list.
+Generate the auth secret:
+
+```bash
+openssl rand -base64 32
+# → 7Qw1kZ9m0uP4rT8vX2yB5nC6dF3gH1jK4lM7oR0sU9w=
+```
+
+Paste that value into `NEXTAUTH_SECRET` in `.env.local`.
+
+#### Two things that catch people out
+
+**`DATABASE_URL` and `DIRECT_DATABASE_URL` are not interchangeable.** The first
+goes through PgBouncer on port **6432** for application queries; the second must
+bypass the pooler on port **5432** because Prisma Migrate needs a session-mode
+connection. Pointing both at the same port produces migrations that hang or fail
+with prepared-statement errors.
+
+**`NEXT_PUBLIC_*` variables are baked in at build time,** not read at runtime.
+Changing one means restarting `pnpm dev` (or rebuilding); editing `.env.local`
+alone will not pick it up. This is also why `NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED`
+exists as a separate flag — a client bundle cannot read the server-only
+`GOOGLE_CLIENT_ID`, so that mirror has to be kept in sync by hand.
+
+#### Optional groups
+
+Leave these alone unless you are working on the feature in question. Each is
+commented in `.env.example` with what it does:
+
+| Group | Variables | Needed for |
+|---|---|---|
+| Supabase | `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY` | Supabase-hosted Postgres and storage |
+| Google sign-in | `GOOGLE_CLIENT_*`, `NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED`, `EXPO_PUBLIC_GOOGLE_*` | "Continue with Google" on web and mobile |
+| Stellar RPC | `NEXT_PUBLIC_STELLAR_RPC_*` | Overriding the default testnet/mainnet RPC endpoints |
+| Contracts | `CONTRACT_ID`, `STELLAR_ADMIN_SECRET` | On-chain escrow and the KYC review flow |
+| Key management | `KMS_PROVIDER`, `KMS_SECRET_PREFIX` | Defaults to `env` locally; `aws` pulls from Secrets Manager |
+| Storage | `AWS_*` | S3 uploads |
+| Payments | `STRIPE_*` | Stripe checkout and webhooks |
+
+#### Check it worked
+
+```bash
+pnpm exec prisma migrate deploy   # exits 0 once DATABASE_URL/DIRECT_DATABASE_URL are right
+pnpm dev
+```
+
+`pnpm dev` should print `Ready in …` and serve <http://localhost:3000>. A crash
+on boot naming a missing variable means that one still holds its placeholder.
 
 ### Database setup
 

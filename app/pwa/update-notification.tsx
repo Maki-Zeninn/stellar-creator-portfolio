@@ -1,12 +1,16 @@
-// @ts-nocheck
 'use client';
 import React, { useState, useEffect } from 'react';
-// Commenting out due to missing module
-// import { usePWA } from '@/components/pwa/pwa-provider';
 
+// NOTE: components/pwa/pwa-provider (usePWA) does not exist in this repo, so
+// `updateAvailable` is pinned to false and the banner never renders. Swap the
+// constant for the hook if the provider is ever added.
 export default function UpdateNotification() {
-  // Mocking state since usePWA is missing
-  const updateAvailable = false; 
+  const updateAvailable = false;
+
+  // The two pieces of state below were previously never declared — the file
+  // only compiled because of a blanket `@ts-nocheck`, which is now gone.
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
 
   useEffect(() => {
     if (updateAvailable) {

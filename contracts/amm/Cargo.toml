@@ -4,10 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib"]
+# rlib alongside cdylib so the test harness can link against the crate;
+# without it `cargo test` cannot build the in-file test module at all.
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 soroban-sdk = "21.7.7"
+
+# testutils supplies Env::register_contract, Address::generate and
+# mock_all_auths, which every test in src/lib.rs already uses. Matches how
+# contracts/escrow is configured.
+[dev-dependencies]
+soroban-sdk = { version = "21.7.7", features = ["testutils"] }
 
 [profile.release]
 opt-level = "z"

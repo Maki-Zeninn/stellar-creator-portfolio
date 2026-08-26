@@ -81,7 +81,7 @@ export function ApiKeysManager() {
   };
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading API keys…</p>;
+    return <ApiKeysSkeleton />;
   }
 
   return (

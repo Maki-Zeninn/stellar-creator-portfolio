@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { ApiKeysManager } from "@/components/dashboard/api-keys-manager";
+import { ApiKeysSkeleton } from "@/components/ui/skeleton-group";
 
 export const metadata = {
   title: "API Keys | Tamgora Creators",
@@ -14,7 +16,12 @@ export default function ApiKeysPage() {
           Generate and manage API keys for programmatic access to the GraphQL API.
         </p>
       </div>
-      <ApiKeysManager />
+      {/* Matches the pattern used by the files dashboard: a skeleton covers
+          the streaming/hydration gap, and the manager shows the same skeleton
+          again while it fetches. */}
+      <Suspense fallback={<ApiKeysSkeleton />}>
+        <ApiKeysManager />
+      </Suspense>
     </div>
   );
 }
