@@ -84,17 +84,91 @@ pnpm dev                      # http://localhost:3000
 pnpm build                    # production build
 ```
 
-### Required environment variables
+### Environment Setup
 
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string (PgBouncer pooler) |
-| `DIRECT_DATABASE_URL` | Direct Postgres URL (Prisma migrate only) |
-| `NEXTAUTH_SECRET` | Random secret for NextAuth |
-| `NEXTAUTH_URL` | App URL (http://localhost:3000 in dev) |
-| `NEXT_PUBLIC_STELLAR_NETWORK` | `testnet` or `mainnet` |
+The app supports three environments: **development** (local), **staging** (testnet), and **production** (mainnet). Key differences:
 
-See `.env.example` for the full list.
+| Variable | Development | Staging | Production |
+|---|---|---|---|
+| `NEXT_PUBLIC_STELLAR_NETWORK` | `testnet` | `testnet` | `mainnet` |
+| `NEXTAUTH_URL` | `http://localhost:3000` | `https://staging.example.com` | `https://tamgora.com` |
+| `DATABASE_URL` | `localhost:6432/stellar_portfolio` | Supabase staging | Supabase production |
+| `STRIPE_SECRET_KEY` | `sk_test_...` | `sk_test_...` | `sk_live_...` |
+| `SENTRY_ENVIRONMENT` | `development` | `staging` | `production` |
+| `KMS_PROVIDER` | `env` | `env` or `aws` | `aws` |
+| `NEXT_PUBLIC_STELLAR_NETWORK` contract | Testnet contract ID | Testnet contract ID | Mainnet contract ID |
+
+#### Development Setup (Local)
+
+```bash
+# Copy the example and update for local development
+cp .env.example .env.local
+
+# Essential edits to .env.local:
+# - NEXTAUTH_URL=http://localhost:3000
+# - DATABASE_URL points to your local PostgreSQL (port 6432 with PgBouncer)
+# - DIRECT_DATABASE_URL points to localhost:5432
+# - NEXT_PUBLIC_STELLAR_NETWORK=testnet
+# - Stripe/Google keys: leave as-is or populate with test credentials
+# - All NEXT_PUBLIC_* vars are baked into the build, so rebuild after changes
+
+pnpm install
+pnpm dev  # http://localhost:3000
+```
+
+#### Staging Setup (Testnet Supabase)
+
+```bash
+# Create a staging-specific env file
+cp .env.example .env.staging.local
+
+# Update these values:
+# NEXTAUTH_URL=https://staging.example.com
+# NEXT_PUBLIC_SUPABASE_URL=<staging-project-url>
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=<staging-anon-key>
+# SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>
+# DATABASE_URL=<Supabase connection string with PgBouncer, port 6432>
+# DIRECT_DATABASE_URL=<Supabase direct URL, port 5432>
+# NEXT_PUBLIC_STELLAR_NETWORK=testnet
+# CONTRACT_ID=<deployed testnet contract address>
+# Stripe keys: sk_test_... / pk_test_...
+# Google OAuth: populate with staging credentials
+# KMS_PROVIDER=env (or aws with staging Secrets Manager prefix)
+# SENTRY_ENVIRONMENT=staging
+
+pnpm build
+# Verify the build includes testnet RPC URLs:
+grep -r "soroban-testnet" .next/standalone || echo "❌ Testnet RPC not baked in"
+```
+
+#### Production Setup (Mainnet Supabase)
+
+```bash
+# Production uses only environment variables set in your deployment platform
+# (Vercel, Railway, etc.) — never create a local .env file with production secrets
+
+# Equivalent production values (set via your deployment platform):
+# NEXTAUTH_URL=https://tamgora.com (or your domain)
+# NEXT_PUBLIC_SUPABASE_URL=<prod-project-url>
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=<prod-anon-key>
+# SUPABASE_SERVICE_ROLE_KEY=<prod-service-role-key>
+# DATABASE_URL=<Supabase production URL with PgBouncer>
+# DIRECT_DATABASE_URL=<Supabase production direct URL>
+# NEXT_PUBLIC_STELLAR_NETWORK=mainnet  # ← CRITICAL: switches RPC to mainnet
+# CONTRACT_ID=<deployed mainnet contract address>
+# Stripe keys: sk_live_... / pk_live_... ← LIVE keys, not test
+# Google OAuth: production credentials
+# KMS_PROVIDER=aws  # Fetch secrets from AWS Secrets Manager
+# SENTRY_ENVIRONMENT=production
+
+# Verify the build will use mainnet (check after Vercel/your platform builds):
+# - Logs should show NEXT_PUBLIC_STELLAR_NETWORK=mainnet
+# - Contract addresses should reference mainnet (start with C for Soroban mainnet)
+```
+
+**Critical**: All `NEXT_PUBLIC_*` variables are baked into the build at compile time. Changing these requires a fresh build. When deploying to a new environment, ensure your platform rebuilds the app after setting env vars.
+
+See `.env.example` for the complete list of all variables.
 
 ### Database setup
 
