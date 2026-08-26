@@ -20,6 +20,7 @@ const eslintConfig = [
       '@typescript-eslint/no-unused-expressions': 'warn',
       '@typescript-eslint/no-require-imports': 'warn',
       'prefer-const': 'warn',
+      'quotes': ['error', 'single', { avoidEscape: true }],
       'react/no-unescaped-entities': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/purity': 'warn',
