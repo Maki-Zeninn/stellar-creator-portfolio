@@ -71,8 +71,17 @@ Network passphrase: `Test SDF Network ; September 2015`
 
 - Node.js 20+
 - pnpm 9+
-- Rust + `wasm32v1-none` target (`rustup target add wasm32v1-none`)
-- Stellar CLI 27+ (`cargo install --locked stellar-cli`)
+- Rust 1.70+ + `wasm32v1-none` target:
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  rustup target add wasm32v1-none
+  ```
+- Stellar CLI 27+ (includes Soroban contract CLI):
+  ```bash
+  cargo install --locked stellar-cli
+  stellar --version  # verify: should show v27.0.0 or higher
+  ```
+  The `--locked` flag ensures reproducible builds by using the exact dependency versions from the lockfile.
 - PostgreSQL (or a Supabase project)
 
 ### Frontend

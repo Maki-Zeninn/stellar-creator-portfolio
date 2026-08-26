@@ -25,12 +25,34 @@ describe('formatCurrency', () => {
 });
 
 describe('formatDate', () => {
-  it('formats an ISO string', () => {
+  it('formats an ISO string with full date (default)', () => {
     expect(formatDate('2025-08-12')).toBe('Aug 12, 2025');
   });
 
-  it('formats a Date object', () => {
+  it('formats a Date object with full date (default)', () => {
     expect(formatDate(new Date('2024-01-01'))).toBe('Jan 1, 2024');
+  });
+
+  it('formats with month and day only', () => {
+    expect(formatDate('2025-08-12', 'month-day')).toBe('Aug 12');
+  });
+
+  it('formats with month and year only', () => {
+    expect(formatDate('2025-08-12', 'month-year')).toBe('Aug 2025');
+  });
+
+  it('formats with date and time', () => {
+    const result = formatDate(new Date('2025-08-12T14:30:00'), 'date-time');
+    expect(result).toMatch(/Aug 12, 2025.*02:30 PM|14:30/);
+  });
+
+  it('formats with browser default locale', () => {
+    const result = formatDate('2025-08-12', 'default');
+    expect(result).toMatch(/\d/);
+  });
+
+  it('explicit full type matches default behavior', () => {
+    expect(formatDate('2025-08-12', 'full')).toBe('Aug 12, 2025');
   });
 });
 

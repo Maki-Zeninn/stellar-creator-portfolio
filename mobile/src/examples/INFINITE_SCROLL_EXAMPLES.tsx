@@ -12,6 +12,7 @@ import React, { useCallback } from "react";
 import { View, SafeAreaView } from "react-native";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import { InfiniteScrollList } from "../components/InfiniteScrollList";
+import { formatDate } from "../utils";
 
 interface Product {
   id: string;
@@ -202,8 +203,7 @@ const mockApiGetArticles = async (
       id: `article-${index}`,
       title: `Article ${index + 1}: Interesting Topic`,
       excerpt: `This is a brief excerpt from article ${index + 1}...`,
-      date: new Date(Date.now() - Math.random() * 100 * 24 * 60 * 60 * 1000)
-        .toLocaleDateString(),
+      date: formatDate(new Date(Date.now() - Math.random() * 100 * 24 * 60 * 60 * 1000)),
     });
   }
 

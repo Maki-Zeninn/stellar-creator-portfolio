@@ -55,42 +55,35 @@ export function SocialShare({ title, description, url, hashtags = [], className 
   const supportsNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={className}>
-          <Share2 className="w-4 h-4 mr-2" />
-          Share
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        {supportsNativeShare && (
-          <DropdownMenuItem onClick={handleNativeShare}>
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={handleCopyLink} aria-live="polite">
+        {copied ? <Check className="w-4 h-4 mr-2 text-green-500" /> : <Link2 className="w-4 h-4 mr-2" />}
+        {copied ? 'Link copied!' : 'Copy link'}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className={className}>
             <Share2 className="w-4 h-4 mr-2" />
-            Share via...
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onClick={() => window.open(shareLinks.twitter, '_blank', 'width=600,height=400')}>
-          <Twitter className="w-4 h-4 mr-2 text-blue-400" />
-          Share on Twitter
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => window.open(shareLinks.linkedin, '_blank', 'width=600,height=400')}>
-          <Linkedin className="w-4 h-4 mr-2 text-blue-600" />
-          Share on LinkedIn
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleCopyLink}>
-          {copied ? (
-            <>
-              <Check className="w-4 h-4 mr-2 text-green-500" />
-              Link copied!
-            </>
-          ) : (
-            <>
-              <Link2 className="w-4 h-4 mr-2" />
-              Copy link
-            </>
+            Share
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {supportsNativeShare && (
+            <DropdownMenuItem onClick={handleNativeShare}>
+              <Share2 className="w-4 h-4 mr-2" />
+              Share via...
+            </DropdownMenuItem>
           )}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem onClick={() => window.open(shareLinks.twitter, '_blank', 'width=600,height=400')}>
+            <Twitter className="w-4 h-4 mr-2 text-blue-400" />
+            Share on Twitter
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => window.open(shareLinks.linkedin, '_blank', 'width=600,height=400')}>
+            <Linkedin className="w-4 h-4 mr-2 text-blue-600" />
+            Share on LinkedIn
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

@@ -276,7 +276,7 @@ export default function BountiesClient({ bounties }: { bounties: Bounty[] }) {
           </p>
 
           {filtered.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6">
               {filtered.map((bounty) => (
                 <div key={bounty.id} className="bg-card border border-border rounded-xl p-6 space-y-4 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start gap-4">

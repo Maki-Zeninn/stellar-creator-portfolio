@@ -46,7 +46,7 @@ jobs:
 
       # ── Cargo (Rust) scan ───────────────────────────────────────────────────
       - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.74.0
 
       - name: Snyk — Cargo dependencies
         uses: snyk/actions/rust@master
