@@ -141,6 +141,7 @@ export function OnboardingWalkthrough({ onComplete, onSkip }: OnboardingWalkthro
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index !== null) {
         setCurrentIndex(viewableItems[0].index);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
     []
