@@ -41,10 +41,12 @@ export function KYCReviewPanel() {
   async function load() {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/kyc?status=PENDING');
-      if (!res.ok) throw new Error(`Failed to load KYC submissions (${res.status})`);
-      const data = await res.json();
-      setSubmissions(data.submissions ?? []);
+      const response = await fetch('/api/admin/kyc?status=PENDING');
+      if (!response.ok) {
+        throw new Error(`Failed to load KYC submissions (${response.status})`);
+      }
+      const payload = await response.json();
+      setSubmissions(payload.submissions ?? []);
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Failed to load KYC submissions');
     } finally {
@@ -52,27 +54,27 @@ export function KYCReviewPanel() {
     }
   }
 
-  function notify(msg: string) {
-    setToast(msg);
+  function notify(message: string) {
+    setToast(message);
     setTimeout(() => setToast(null), 4000);
   }
 
-  async function review(id: string, decision: 'approve' | 'reject') {
+  async function review(submissionId: string, decision: 'approve' | 'reject') {
     const reason = decision === 'reject' ? prompt('Reason for rejection:') : undefined;
     if (decision === 'reject' && !reason) return;
 
     try {
-      const res = await fetch(`/api/admin/kyc/${id}/review`, {
+      const response = await fetch(`/api/admin/kyc/${submissionId}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, reason }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Review failed');
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? 'Review failed');
 
       notify(
         decision === 'approve'
-          ? data.warning ?? 'Submission approved.'
+          ? payload.warning ?? 'Submission approved.'
           : 'Submission rejected.',
       );
       await load();
@@ -121,16 +123,16 @@ export function KYCReviewPanel() {
                   </td>
                 </tr>
               ) : (
-                submissions.map((s) => (
-                  <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-medium">{s.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{s.userEmail}</td>
-                    <td className="px-4 py-3">{s.documentType}</td>
+                submissions.map((submission) => (
+                  <tr key={submission.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-medium">{submission.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{submission.userEmail}</td>
+                    <td className="px-4 py-3">{submission.documentType}</td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(s.uploadedAt).toLocaleDateString()}
+                      {new Date(submission.uploadedAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={STATUS_VARIANT[s.status]}>{s.status}</Badge>
+                      <Badge variant={STATUS_VARIANT[submission.status]}>{submission.status}</Badge>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
@@ -138,7 +140,7 @@ export function KYCReviewPanel() {
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs gap-1"
-                          onClick={() => review(s.id, 'approve')}
+                          onClick={() => review(submission.id, 'approve')}
                         >
                           <ShieldCheck size={12} /> Approve
                         </Button>
@@ -146,7 +148,7 @@ export function KYCReviewPanel() {
                           size="sm"
                           variant="ghost"
                           className="h-7 text-xs text-destructive hover:text-destructive gap-1"
-                          onClick={() => review(s.id, 'reject')}
+                          onClick={() => review(submission.id, 'reject')}
                         >
                           <ShieldX size={12} /> Reject
                         </Button>

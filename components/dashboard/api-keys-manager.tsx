@@ -157,7 +157,12 @@ export function ApiKeysManager() {
                     Usage graph (requests/day)
                   </div>
                 </div>
-                <Button variant="destructive" size="sm" onClick={() => revokeKey(key.id)}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  aria-label={`Revoke API key ${key.name}`}
+                  onClick={() => revokeKey(key.id)}
+                >
                   Revoke
                 </Button>
               </li>
