@@ -25,20 +25,20 @@ export function ReviewCard({ review, currentUserId, userVote, onVote }: ReviewCa
     if (!currentUserId || !onVote) return;
 
     // Optimistic update
-    const prev = optimisticVote;
-    if (prev === vote) {
+    const previousVote = optimisticVote;
+    if (previousVote === vote) {
       // Toggle off
       setOptimisticVote(null);
-      if (vote === 'helpful') setHelpfulCount((c) => Math.max(0, c - 1));
-      else setNotHelpfulCount((c) => Math.max(0, c - 1));
+      if (vote === 'helpful') setHelpfulCount((currentCount) => Math.max(0, currentCount - 1));
+      else setNotHelpfulCount((currentCount) => Math.max(0, currentCount - 1));
     } else {
       // Undo previous
-      if (prev === 'helpful') setHelpfulCount((c) => Math.max(0, c - 1));
-      if (prev === 'not_helpful') setNotHelpfulCount((c) => Math.max(0, c - 1));
+      if (previousVote === 'helpful') setHelpfulCount((currentCount) => Math.max(0, currentCount - 1));
+      if (previousVote === 'not_helpful') setNotHelpfulCount((currentCount) => Math.max(0, currentCount - 1));
       // Apply new
       setOptimisticVote(vote);
-      if (vote === 'helpful') setHelpfulCount((c) => c + 1);
-      else setNotHelpfulCount((c) => c + 1);
+      if (vote === 'helpful') setHelpfulCount((currentCount) => currentCount + 1);
+      else setNotHelpfulCount((currentCount) => currentCount + 1);
     }
 
     onVote(review.id, vote);

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { ComparisonProvider } from '@/components/ComparisonContext'
 import { ComparisonBar } from '@/components/ComparisonBar'
 import { OnboardingTour } from '@/components/OnboardingTour'
+import { BackToTop } from '@/components/back-to-top'
 
 // ── Loading event bus ─────────────────────────────────────────────────────────
 
@@ -86,6 +87,8 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
         {children}
         <ComparisonBar />
         <OnboardingTour />
+        {/* #1234 — floating back-to-top on long pages */}
+        <BackToTop />
       </ComparisonProvider>
     </LoadingContext.Provider>
   )

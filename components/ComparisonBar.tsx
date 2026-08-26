@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getAvatarInitials } from '@/lib/utils';
 import { useComparison } from '@/components/ComparisonContext';
 
 export function ComparisonBar() {
@@ -35,7 +36,7 @@ export function ComparisonBar() {
                 className="relative w-10 h-10 rounded-full border-2 border-background bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold text-white"
                 title={creator.name}
               >
-                {creator.name.charAt(0)}
+                {getAvatarInitials(creator.name)[0]}
               </div>
             ))}
           </div>

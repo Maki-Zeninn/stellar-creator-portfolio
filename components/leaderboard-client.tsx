@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star, Award, Trophy, Sparkles, TrendingUp, Compass } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getAvatarInitials } from '@/lib/utils';
 
 export interface CreatorLeaderboardItem {
   id: string;
@@ -171,7 +172,7 @@ export function LeaderboardClient({ creators, currentUserId }: LeaderboardClient
                         <Avatar className="h-9 w-9 border border-border">
                           <AvatarImage src={creator.avatar || ''} alt={creator.displayName} />
                           <AvatarFallback className="bg-indigo-500/10 text-indigo-400">
-                            {creator.displayName.substring(0, 2).toUpperCase()}
+                            {getAvatarInitials(creator.displayName)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col min-w-0">
@@ -231,7 +232,7 @@ export function LeaderboardClient({ creators, currentUserId }: LeaderboardClient
                   <Avatar className="h-9 w-9 border border-indigo-500/20">
                     <AvatarImage src={ownRankInfo.creator.avatar || ''} alt={ownRankInfo.creator.displayName} />
                     <AvatarFallback className="bg-indigo-500/20 text-indigo-300">
-                      {ownRankInfo.creator.displayName.substring(0, 2).toUpperCase()}
+                      {getAvatarInitials(ownRankInfo.creator.displayName)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Star } from 'lucide-react';
+import { getAvatarInitials } from '@/lib/utils';
 
 export interface Testimonial {
   id: string;
@@ -70,17 +71,10 @@ const testimonials: Testimonial[] = [
   },
 ];
 
-/** Initials avatar fallback */
 function InitialsAvatar({ name }: { name: string }) {
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
   return (
     <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-accent/20 text-accent font-semibold text-sm select-none">
-      {initials}
+      {getAvatarInitials(name)}
     </span>
   );
 }
