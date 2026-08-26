@@ -7,19 +7,18 @@
 
 #![no_std]
 use soroban_sdk::{
-    contract, contractimpl, contracttype, contracterror,
-    Address, Env, Vec, Symbol, symbol_short,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol, Vec,
 };
 
 /// Errors specific to dispute arbitration.
 #[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DisputeError {
-    PoolTooSmall = 1,        // fewer than MIN_ARBITRATORS in pool
-    AlreadyAssigned = 2,     // dispute already has an arbitrator
-    ConflictOfInterest = 3,  // every eligible candidate is a dispute party
-    Unauthorized = 4,        // caller is not governance
-    DisputeNotFound = 5,     // no dispute with the given ID
+    PoolTooSmall = 1,       // fewer than MIN_ARBITRATORS in pool
+    AlreadyAssigned = 2,    // dispute already has an arbitrator
+    ConflictOfInterest = 3, // every eligible candidate is a dispute party
+    Unauthorized = 4,       // caller is not governance
+    DisputeNotFound = 5,    // no dispute with the given ID
 }
 
 /// Status of a dispute.
@@ -61,7 +60,17 @@ pub struct DisputeContract;
 impl DisputeContract {
     // ── Governance ────────────────────────────────────────────────────────────
 
-    /// Set the governance address (called once at deploy time).
+    /// Sets the governance address during contract deployment.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for authorization and storage.
+    /// * `governance` - Address authorized to manage the arbitrator pool.
+    ///
+    /// # Preconditions
+    ///
+    /// `governance` must authorize the invocation and the contract must not
+    /// already be initialized. A second initialization attempt panics.
     pub fn initialize(env: Env, governance: Address) {
         governance.require_auth();
         assert!(
@@ -71,13 +80,18 @@ impl DisputeContract {
         env.storage().instance().set(&GOVERNANCE, &governance);
     }
 
-    /// Add an arbitrator to the pool. Governance-only.
+    /// Adds an address to the arbitrator pool and returns the new pool size.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment containing contract state.
+    /// * `arbitrator` - Address to append to the selection pool.
+    ///
+    /// # Preconditions
+    ///
+    /// The contract must be initialized and governance must authorize the call.
     pub fn add_arbitrator(env: Env, arbitrator: Address) -> Result<u32, DisputeError> {
-        let governance: Address = env
-            .storage()
-            .instance()
-            .get(&GOVERNANCE)
-            .unwrap();
+        let governance: Address = env.storage().instance().get(&GOVERNANCE).unwrap();
         governance.require_auth();
 
         let mut pool: Vec<Address> = env
@@ -89,21 +103,24 @@ impl DisputeContract {
         pool.push_back(arbitrator.clone());
         env.storage().instance().set(&ARBITRATOR_POOL, &pool);
 
-        env.events().publish(
-            (symbol_short!("arb"), symbol_short!("added")),
-            arbitrator,
-        );
+        env.events()
+            .publish((symbol_short!("arb"), symbol_short!("added")), arbitrator);
 
         Ok(pool.len())
     }
 
-    /// Remove an arbitrator from the pool. Governance-only.
+    /// Removes every occurrence of an address and returns the new pool size.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment containing contract state.
+    /// * `arbitrator` - Address to remove from the selection pool.
+    ///
+    /// # Preconditions
+    ///
+    /// The contract must be initialized and governance must authorize the call.
     pub fn remove_arbitrator(env: Env, arbitrator: Address) -> Result<u32, DisputeError> {
-        let governance: Address = env
-            .storage()
-            .instance()
-            .get(&GOVERNANCE)
-            .unwrap();
+        let governance: Address = env.storage().instance().get(&GOVERNANCE).unwrap();
         governance.require_auth();
 
         let pool: Vec<Address> = env
@@ -122,15 +139,19 @@ impl DisputeContract {
 
         env.storage().instance().set(&ARBITRATOR_POOL, &new_pool);
 
-        env.events().publish(
-            (symbol_short!("arb"), symbol_short!("removed")),
-            arbitrator,
-        );
+        env.events()
+            .publish((symbol_short!("arb"), symbol_short!("removed")), arbitrator);
 
         Ok(new_pool.len())
     }
 
-    /// Read the current arbitrator pool (no auth required).
+    /// Returns the current arbitrator pool, or an empty vector before setup.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment from which the pool is read.
+    ///
+    /// No authorization is required.
     pub fn get_arbitrator_pool(env: Env) -> Vec<Address> {
         env.storage()
             .instance()
@@ -140,7 +161,19 @@ impl DisputeContract {
 
     // ── Disputes ──────────────────────────────────────────────────────────────
 
-    /// Open a new dispute between creator and client. Caller must be creator.
+    /// Opens a dispute between a creator and client.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for storage and event emission.
+    /// * `dispute_id` - Caller-provided identifier for the new dispute.
+    /// * `creator` - Creator party and authorizer of this invocation.
+    /// * `client` - Client party to the dispute.
+    ///
+    /// # Preconditions
+    ///
+    /// `creator` must authorize the invocation. Callers are responsible for
+    /// supplying a unique `dispute_id`.
     pub fn open_dispute(
         env: Env,
         dispute_id: u64,
@@ -190,6 +223,16 @@ impl DisputeContract {
     /// times using an offset to avoid cycling back to the same index.
     /// If every member of the pool is a party to the dispute the call
     /// returns `DisputeError::ConflictOfInterest`.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment providing storage and secure PRNG.
+    /// * `dispute_id` - Identifier of an existing, unassigned dispute.
+    ///
+    /// # Preconditions
+    ///
+    /// The pool must contain at least seven addresses and the dispute must be
+    /// open with no arbitrator assigned.
     pub fn assign_arbitrator(env: Env, dispute_id: u64) -> Result<Address, DisputeError> {
         let pool: Vec<Address> = env
             .storage()
@@ -262,7 +305,15 @@ impl DisputeContract {
         Ok(arbitrator)
     }
 
-    /// Fetch a dispute by ID (returns None if not found).
+    /// Fetches a dispute by ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment from which disputes are read.
+    /// * `dispute_id` - Identifier to find.
+    ///
+    /// Returns `None` when no matching dispute exists. No authorization is
+    /// required.
     pub fn get_dispute(env: Env, dispute_id: u64) -> Option<Dispute> {
         let disputes: Vec<Dispute> = env
             .storage()
