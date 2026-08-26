@@ -1,6 +1,7 @@
 'use client';
 
 import { Linkedin, Twitter } from 'lucide-react';
+import { getAvatarInitials } from '@/lib/utils';
 
 interface TeamMember {
   id: string;
@@ -80,7 +81,7 @@ export function TeamSection() {
               {/* Avatar Placeholder */}
               <div className="w-full aspect-square bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg mb-4 flex items-center justify-center">
                 <div className="text-3xl font-bold text-primary/50">
-                  {member.name.split(' ')[0][0]}{member.name.split(' ')[1][0]}
+                  {getAvatarInitials(member.name)}
                 </div>
               </div>
 
