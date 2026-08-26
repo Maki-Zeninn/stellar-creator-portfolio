@@ -193,7 +193,37 @@ export default function AdminBountiesPage() {
                   </>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground text-sm">No bounties found</td></tr>
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8">
+                      <div className="text-center space-y-3">
+                        <p className="text-muted-foreground text-sm">No bounties match your filters.</p>
+                        <div className="flex items-center justify-center gap-2">
+                          {(search || statusFilter !== 'All') && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSearch('');
+                                  setStatusFilter('All');
+                                }}
+                              >
+                                Clear Filters
+                              </Button>
+                              <span className="text-xs text-muted-foreground">or</span>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.location.href = '/'}
+                          >
+                            View on Marketplace
+                          </Button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
