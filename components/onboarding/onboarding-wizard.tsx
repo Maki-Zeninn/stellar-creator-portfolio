@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import {
   Form,
   FormControl,
@@ -15,25 +15,25 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { SkillCombobox } from "@/components/ui/skill-combobox";
-import { CreatorCard } from "@/components/cards/creator-card";
-import { creators, bounties } from "@/lib/services/creators-data";
-import { trackEvent, trackConversion } from "@/lib/analytics/analytics";
-import { isValidStellarAddress } from "@/lib/utils/stellar-address";
+} from '@/components/ui/select';
+import { SkillCombobox } from '@/components/ui/skill-combobox';
+import { CreatorCard } from '@/components/cards/creator-card';
+import { creators, bounties } from '@/lib/services/creators-data';
+import { trackEvent, trackConversion } from '@/lib/analytics/analytics';
+import { isValidStellarAddress } from '@/lib/utils/stellar-address';
 
 const TOTAL_STEPS = 3;
 
 const roleSchema = z.object({
-  role: z.enum(["CREATOR", "CLIENT"]),
+  role: z.enum(['CREATOR', 'CLIENT']),
 });
 
 // Optional at signup on purpose — pasting an address you don't yet have
@@ -42,16 +42,16 @@ const roleSchema = z.object({
 const walletAddressField = z
   .string()
   .optional()
-  .or(z.literal(""))
+  .or(z.literal(''))
   .refine((v) => !v || isValidStellarAddress(v), {
     message: "That doesn't look like a valid Stellar address (starts with G, 56 characters)",
   });
 
 const creatorSchema = z.object({
   displayName: z.string().min(2).max(30),
-  discipline: z.string().min(1, "Select a discipline"),
-  skills: z.array(z.string()).min(1, "Add at least one skill").max(5),
-  avatar: z.string().url().optional().or(z.literal("")),
+  discipline: z.string().min(1, 'Select a discipline'),
+  skills: z.array(z.string()).min(1, 'Add at least one skill').max(5),
+  avatar: z.string().url().optional().or(z.literal('')),
   walletAddress: walletAddressField,
 });
 
@@ -62,49 +62,49 @@ const clientSchema = z.object({
   walletAddress: walletAddressField,
 });
 
-const DISCIPLINES = ["Design", "Development", "Writing", "Marketing", "Video"];
-const PROJECT_TYPES = ["Web App", "Mobile App", "Brand Design", "Content", "Other"];
-const BUDGET_RANGES = ["<$1k", "$1k–$5k", "$5k–$20k", "$20k+"];
+const DISCIPLINES = ['Design', 'Development', 'Writing', 'Marketing', 'Video'];
+const PROJECT_TYPES = ['Web App', 'Mobile App', 'Brand Design', 'Content', 'Other'];
+const BUDGET_RANGES = ['<$1k', '$1k–$5k', '$5k–$20k', '$20k+'];
 
 export function OnboardingWizard() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState<"CREATOR" | "CLIENT" | null>(null);
+  const [role, setRole] = useState<'CREATOR' | 'CLIENT' | null>(null);
   const [loading, setLoading] = useState(true);
 
   const roleForm = useForm<z.infer<typeof roleSchema>>({
     resolver: zodResolver(roleSchema),
-    defaultValues: { role: "CREATOR" },
+    defaultValues: { role: 'CREATOR' },
   });
 
   const creatorForm = useForm<z.infer<typeof creatorSchema>>({
     resolver: zodResolver(creatorSchema),
-    defaultValues: { displayName: "", discipline: "", skills: [], avatar: "", walletAddress: "" },
+    defaultValues: { displayName: '', discipline: '', skills: [], avatar: '', walletAddress: '' },
   });
 
   const clientForm = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
-    defaultValues: { companyName: "", projectType: "", budgetRange: "", walletAddress: "" },
+    defaultValues: { companyName: '', projectType: '', budgetRange: '', walletAddress: '' },
   });
 
   const persistStep = useCallback(async (nextStep: number, extra?: Record<string, unknown>) => {
-    await fetch("/api/onboarding", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/onboarding', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step: nextStep, data: extra, role: role ?? undefined }),
     });
   }, [role]);
 
   useEffect(() => {
-    fetch("/api/onboarding")
+    fetch('/api/onboarding')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.onboardingCompletedAt) {
-          router.replace("/dashboard");
+          router.replace('/dashboard');
           return;
         }
         if (data?.onboardingStep) setStep(Math.min(data.onboardingStep, TOTAL_STEPS));
-        if (data?.role === "CREATOR" || data?.role === "CLIENT") setRole(data.role);
+        if (data?.role === 'CREATOR' || data?.role === 'CLIENT') setRole(data.role);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -113,54 +113,54 @@ export function OnboardingWizard() {
   const goToStep = async (next: number) => {
     setStep(next);
     await persistStep(next);
-    trackEvent("onboarding_step", { step: next, role: role ?? "unset" });
+    trackEvent('onboarding_step', { step: next, role: role ?? 'unset' });
   };
 
   const onRoleSubmit = async (values: z.infer<typeof roleSchema>) => {
     setRole(values.role);
-    await fetch("/api/onboarding", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/onboarding', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step: 2, role: values.role }),
     });
-    trackEvent("onboarding_step_complete", { step: 1, role: values.role });
+    trackEvent('onboarding_step_complete', { step: 1, role: values.role });
     setStep(2);
   };
 
   const onProfileSubmit = async (profile: Record<string, unknown>) => {
     if (!role) return;
-    await fetch("/api/onboarding", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/onboarding', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step: 3, data: profile, role }),
     });
     const walletAddress = profile.walletAddress;
-    if (typeof walletAddress === "string" && walletAddress.trim()) {
-      await fetch("/api/user/wallet-address", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+    if (typeof walletAddress === 'string' && walletAddress.trim()) {
+      await fetch('/api/user/wallet-address', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ walletAddress }),
       });
     }
-    trackEvent("onboarding_step_complete", { step: 2, role });
+    trackEvent('onboarding_step_complete', { step: 2, role });
     setStep(3);
   };
 
   const completeOnboarding = async (skipFeatured = false) => {
     const profile =
-      role === "CREATOR"
+      role === 'CREATOR'
         ? creatorForm.getValues()
         : clientForm.getValues();
 
-    await fetch("/api/onboarding", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    await fetch('/api/onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role, profile }),
     });
 
-    trackConversion("signup", { role, skippedFeatured: skipFeatured });
-    trackEvent("onboarding_complete", { role });
-    router.push(role === "CREATOR" ? "/bounties" : "/creators");
+    trackConversion('signup', { role, skippedFeatured: skipFeatured });
+    trackEvent('onboarding_complete', { role });
+    router.push(role === 'CREATOR' ? '/bounties' : '/creators');
   };
 
   if (loading) {
@@ -174,7 +174,7 @@ export function OnboardingWizard() {
       <div className="space-y-2">
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>Step {step} of {TOTAL_STEPS}</span>
-          <Link href="/" className="hover:underline" onClick={() => trackEvent("onboarding_skip", { step })}>
+          <Link href="/" className="hover:underline" onClick={() => trackEvent('onboarding_skip', { step })}>
             Skip for now
           </Link>
         </div>
@@ -196,20 +196,20 @@ export function OnboardingWizard() {
               render={({ field }) => (
                 <FormItem>
                   <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
-                    {(["CREATOR", "CLIENT"] as const).map((r) => (
+                    {(['CREATOR', 'CLIENT'] as const).map((r) => (
                       <button
                         key={r}
                         type="button"
                         onClick={() => field.onChange(r)}
                         className={`rounded-lg border p-6 text-left transition-colors ${
-                          field.value === r ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40"
+                          field.value === r ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/40'
                         }`}
                       >
-                        <p className="font-semibold">{r === "CREATOR" ? "Creator" : "Client"}</p>
+                        <p className="font-semibold">{r === 'CREATOR' ? 'Creator' : 'Client'}</p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {r === "CREATOR"
-                            ? "I offer services and apply to bounties"
-                            : "I hire creators and post bounties"}
+                          {r === 'CREATOR'
+                            ? 'I offer services and apply to bounties'
+                            : 'I hire creators and post bounties'}
                         </p>
                       </button>
                     ))}
@@ -223,7 +223,7 @@ export function OnboardingWizard() {
         </Form>
       )}
 
-      {step === 2 && role === "CREATOR" && (
+      {step === 2 && role === 'CREATOR' && (
         <Form {...creatorForm}>
           <form
             onSubmit={creatorForm.handleSubmit((v) => onProfileSubmit(v))}
@@ -313,7 +313,7 @@ export function OnboardingWizard() {
         </Form>
       )}
 
-      {step === 2 && role === "CLIENT" && (
+      {step === 2 && role === 'CLIENT' && (
         <Form {...clientForm}>
           <form
             onSubmit={clientForm.handleSubmit((v) => onProfileSubmit(v))}
@@ -403,16 +403,16 @@ export function OnboardingWizard() {
         <div className="space-y-6">
           <div>
             <h1 className="text-2xl font-bold">
-              {role === "CREATOR" ? "Featured bounties" : "Top creators"}
+              {role === 'CREATOR' ? 'Featured bounties' : 'Top creators'}
             </h1>
             <p className="text-muted-foreground mt-1">
-              {role === "CREATOR"
-                ? "Browse open bounties and apply to get started."
-                : "Explore top-rated creators ready for your next project."}
+              {role === 'CREATOR'
+                ? 'Browse open bounties and apply to get started.'
+                : 'Explore top-rated creators ready for your next project.'}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-1">
-            {role === "CREATOR"
+            {role === 'CREATOR'
               ? bounties.slice(0, 3).map((b) => (
                   <Link
                     key={b.id}
