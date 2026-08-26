@@ -17,6 +17,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FormSkeleton } from '@/components/skeletons/card-skeleton';
 
 const credentialsSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -100,93 +101,99 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {googleConfigured && (
+          {submitting ? (
+            <FormSkeleton />
+          ) : (
             <>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => signIn('google', { callbackUrl })}
-              >
-                <GoogleIcon />
-                Continue with Google
-              </Button>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <div className="h-px flex-1 bg-border" />
-                or
-                <div className="h-px flex-1 bg-border" />
-              </div>
+              {googleConfigured && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => signIn('google', { callbackUrl })}
+                  >
+                    <GoogleIcon />
+                    Continue with Google
+                  </Button>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="h-px flex-1 bg-border" />
+                    or
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                </>
+              )}
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  {mode === 'register' && (
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="you@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={submitting}>
+                    {mode === 'signin' ? 'Sign in' : 'Create account'}
+                  </Button>
+                </form>
+              </Form>
+
+              <p className="text-center text-sm text-muted-foreground">
+                {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+                <button
+                  type="button"
+                  className="font-medium text-foreground hover:underline"
+                  onClick={() => {
+                    setMode(mode === 'signin' ? 'register' : 'signin');
+                    setError(null);
+                  }}
+                >
+                  {mode === 'signin' ? 'Create one' : 'Sign in'}
+                </button>
+              </p>
             </>
           )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {mode === 'register' && (
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="you@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
-              </Button>
-            </form>
-          </Form>
-
-          <p className="text-center text-sm text-muted-foreground">
-            {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              type="button"
-              className="font-medium text-foreground hover:underline"
-              onClick={() => {
-                setMode(mode === 'signin' ? 'register' : 'signin');
-                setError(null);
-              }}
-            >
-              {mode === 'signin' ? 'Create one' : 'Sign in'}
-            </button>
-          </p>
         </CardContent>
       </Card>
     </div>

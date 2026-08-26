@@ -198,6 +198,14 @@
   animation: shimmer 2s infinite;
 }
 
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer {
+    animation: none;
+    background: transparent;
+  }
+}
+
 .animate-rotate-slow {
   animation: rotate-slow 3s linear infinite;
 }

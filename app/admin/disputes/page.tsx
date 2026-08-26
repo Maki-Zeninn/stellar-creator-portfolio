@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Gavel, RefreshCw } from 'lucide-react';
@@ -196,27 +197,14 @@ export default function AdminDisputesPage() {
             )}
           </CardContent>
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 px-4 pb-4">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <span className="self-center text-sm text-muted-foreground">
-                {page} / {totalPages}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
+            <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              label={`${page} / ${totalPages}`}
+              align="center"
+              className="px-4 pb-4"
+            />
           )}
         </Card>
 

@@ -48,10 +48,10 @@ export function SearchBar({
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
     try {
       setIsLoading(true);
-      // This would call your API endpoint for suggestions
-      // const res = await fetch(`/api/search/suggestions?q=${searchQuery}`);
-      // const data = await res.json();
-      // setSuggestions(data);
+      // No suggestions endpoint exists yet, so this resolves with none.
+      // When /api/search/suggestions lands, fetch it here and hand the
+      // result to setSuggestions.
+      void searchQuery;
     } catch (error) {
       console.error('Error fetching suggestions:', error);
     } finally {

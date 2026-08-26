@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { CreatorCard } from '@/components/cards/creator-card';
+import { CardSkeletonGrid } from '@/components/skeletons/card-skeleton';
+import { EmptyState } from '@/components/common/empty-state';
 import { Button } from '@/components/ui/button';
 import { creators, disciplines } from '@/lib/services/creators-data';
 import { ArrowRight, Search, Star } from 'lucide-react';
@@ -12,6 +14,13 @@ import { ArrowRight, Search, Star } from 'lucide-react';
 export default function FreelancersPage() {
   const [selectedDiscipline, setSelectedDiscipline] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate data loading to show skeleton on initial mount
+    const timer = setTimeout(() => setIsLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredCreators = creators.filter((creator) => {
     const disciplineMatch = selectedDiscipline === 'All' || creator.discipline === selectedDiscipline;
@@ -82,31 +91,33 @@ export default function FreelancersPage() {
 
             {/* Results */}
             <div>
-              <p className="text-sm text-muted-foreground mb-8">
-                Showing {filteredCreators.length} freelancer{filteredCreators.length !== 1 ? 's' : ''}
-              </p>
+              {!isLoading && (
+                <p className="text-sm text-muted-foreground mb-8">
+                  Showing {filteredCreators.length} freelancer{filteredCreators.length !== 1 ? 's' : ''}
+                </p>
+              )}
 
-              {filteredCreators.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {isLoading ? (
+                <CardSkeletonGrid count={6} />
+              ) : filteredCreators.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
                   {filteredCreators.map((creator) => (
                     <CreatorCard key={creator.id} creator={creator} />
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-16">
-                  <p className="text-lg text-muted-foreground mb-4">
-                    No freelancers match your search.
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
+                <EmptyState
+                  icon={Search}
+                  title="No freelancers match your search"
+                  description="Try adjusting your filters or search terms to find the perfect freelancer."
+                  action={{
+                    label: 'Clear Filters',
+                    onClick: () => {
                       setSelectedDiscipline('All');
                       setSearchQuery('');
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
+                    },
+                  }}
+                />
               )}
             </div>
           </div>

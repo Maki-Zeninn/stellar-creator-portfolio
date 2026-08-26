@@ -251,6 +251,210 @@ mod tests {
         assert!(dx > 0, "swap_y_for_x must return a positive amount of X");
     }
 
+    // ── Happy path: the full add → swap → remove lifecycle (#1247) ──────────
+
+    /// Register the contract and return a client plus a funded first depositor.
+    fn setup(env: &Env) -> (AmmContractClient<'_>, Address, Address) {
+        env.mock_all_auths();
+        let contract_id = env.register_contract(None, AmmContract);
+        let client = AmmContractClient::new(env, &contract_id);
+        (client, contract_id, Address::generate(env))
+    }
+
+    /// Read the pool's reserves straight out of contract storage.
+    fn reserves(env: &Env, contract_id: &Address) -> (i128, i128) {
+        env.as_contract(contract_id, || {
+            let x = env
+                .storage()
+                .instance()
+                .get(&StorageKey::Reserves(symbol_short!("x")))
+                .unwrap_or(0);
+            let y = env
+                .storage()
+                .instance()
+                .get(&StorageKey::Reserves(symbol_short!("y")))
+                .unwrap_or(0);
+            (x, y)
+        })
+    }
+
+    #[test]
+    fn happy_path_add_swap_remove_round_trip() {
+        let env = Env::default();
+        let (client, contract_id, user) = setup(&env);
+
+        // 1. Seed the pool.
+        let lp = client.add_liquidity(&user, &100_000i128, &100_000i128);
+        // sqrt(100_000 * 100_000) = 100_000, less the locked MINIMUM_LIQUIDITY.
+        assert_eq!(lp, 100_000 - MINIMUM_LIQUIDITY);
+        assert_eq!(reserves(&env, &contract_id), (100_000, 100_000));
+
+        // 2. Trade against it. 1_000 X in, 0.3% fee, constant product:
+        //    dy = (1000 * 997 * 100_000) / (100_000 * 1000 + 1000 * 997)
+        let dy = client.swap_x_for_y(&user, &1_000i128, &0i128);
+        let expected_dy = (1_000i128 * 997 * 100_000) / (100_000 * 1000 + 1_000 * 997);
+        assert_eq!(dy, expected_dy);
+
+        let (rx, ry) = reserves(&env, &contract_id);
+        assert_eq!(rx, 100_000 + 1_000);
+        assert_eq!(ry, 100_000 - dy);
+
+        // 3. The fee stays in the pool, so k must not shrink across the trade.
+        assert!(
+            rx * ry >= 100_000i128 * 100_000i128,
+            "constant product must not decrease: k={} start={}",
+            rx * ry,
+            100_000i128 * 100_000i128
+        );
+
+        // 4. Withdraw everything the depositor owns.
+        let (out_x, out_y) = client.remove_liquidity(&user, &lp);
+        assert!(out_x > 0 && out_y > 0);
+
+        // The trade left the pool longer on X and shorter on Y, and the
+        // withdrawal reflects that rather than returning the original split.
+        assert!(
+            out_x > out_y,
+            "after selling X into the pool the LP should redeem more X than Y: x={out_x} y={out_y}"
+        );
+
+        // 5. Only the locked minimum remains — the pool is never fully drained.
+        let total_lp_after: i128 = env.as_contract(&contract_id, || {
+            env.storage()
+                .instance()
+                .get(&StorageKey::TotalLp)
+                .unwrap_or(0)
+        });
+        assert_eq!(total_lp_after, MINIMUM_LIQUIDITY);
+    }
+
+    #[test]
+    fn second_depositor_receives_a_proportional_share() {
+        let env = Env::default();
+        let (client, _contract_id, first) = setup(&env);
+        let second = Address::generate(&env);
+
+        client.add_liquidity(&first, &100_000i128, &100_000i128);
+
+        // Matching the existing ratio at half the size mints half the LP of a
+        // full-size deposit — the pool prices the second deposit off reserves,
+        // not off sqrt(x*y), so MINIMUM_LIQUIDITY is not deducted again.
+        let minted = client.add_liquidity(&second, &50_000i128, &50_000i128);
+        assert_eq!(minted, 50_000);
+    }
+
+    #[test]
+    fn lopsided_later_deposit_is_priced_off_the_scarcer_side() {
+        let env = Env::default();
+        let (client, _contract_id, first) = setup(&env);
+        let second = Address::generate(&env);
+
+        client.add_liquidity(&first, &100_000i128, &100_000i128);
+
+        // 10_000 X against 50_000 Y: LP is min(share_x, share_y), so the
+        // surplus Y earns nothing and the depositor is credited for the X.
+        let minted = client.add_liquidity(&second, &10_000i128, &50_000i128);
+        assert_eq!(minted, 10_000);
+    }
+
+    // ── Edge cases ──────────────────────────────────────────────────────────
+
+    #[test]
+    #[should_panic(expected = "invalid amounts")]
+    fn add_liquidity_rejects_a_zero_amount() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        client.add_liquidity(&user, &0i128, &100_000i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid amounts")]
+    fn add_liquidity_rejects_a_negative_amount() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        client.add_liquidity(&user, &100_000i128, &-1i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "empty pool")]
+    fn swap_against_an_empty_pool_is_rejected() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        // No liquidity has ever been added.
+        client.swap_x_for_y(&user, &1_000i128, &0i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid amount")]
+    fn swap_rejects_a_zero_input() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        client.add_liquidity(&user, &100_000i128, &100_000i128);
+        client.swap_x_for_y(&user, &0i128, &0i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "slippage or zero output")]
+    fn swap_x_for_y_respects_min_dy_slippage_guard() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        client.add_liquidity(&user, &100_000i128, &100_000i128);
+        client.swap_x_for_y(&user, &1_000i128, &i128::MAX);
+    }
+
+    #[test]
+    #[should_panic(expected = "slippage or zero output")]
+    fn a_dust_trade_that_rounds_to_zero_output_is_rejected() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+
+        // A pool that is deep in X and shallow in Y: 1 unit of X buys less
+        // than one whole unit of Y, so integer division floors dy to 0 and
+        // the trade must be refused rather than taking the input for nothing.
+        client.add_liquidity(&user, &1_000_000i128, &1_001i128);
+        client.swap_x_for_y(&user, &1i128, &0i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "not enough lp")]
+    fn cannot_withdraw_more_lp_than_owned() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        let lp = client.add_liquidity(&user, &100_000i128, &100_000i128);
+        client.remove_liquidity(&user, &(lp + 1));
+    }
+
+    #[test]
+    #[should_panic(expected = "no liquidity")]
+    fn cannot_withdraw_from_an_empty_pool() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        client.remove_liquidity(&user, &1i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid lp amount")]
+    fn remove_liquidity_rejects_a_zero_amount() {
+        let env = Env::default();
+        let (client, _contract_id, user) = setup(&env);
+        client.add_liquidity(&user, &100_000i128, &100_000i128);
+        client.remove_liquidity(&user, &0i128);
+    }
+
+    #[test]
+    fn one_lp_cannot_withdraw_against_anothers_balance() {
+        let env = Env::default();
+        let (client, _contract_id, depositor) = setup(&env);
+        let stranger = Address::generate(&env);
+
+        client.add_liquidity(&depositor, &100_000i128, &100_000i128);
+
+        // The stranger holds no LP, so any withdrawal must fail even though
+        // the pool itself is well funded.
+        let result = client.try_remove_liquidity(&stranger, &1i128);
+        assert!(result.is_err(), "a non-LP must not be able to withdraw");
+    }
+
     #[test]
     #[should_panic(expected = "slippage or zero output")]
     fn swap_y_for_x_respects_min_dx_slippage_guard() {

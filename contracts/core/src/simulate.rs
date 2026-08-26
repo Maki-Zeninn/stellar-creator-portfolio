@@ -34,6 +34,19 @@ impl SimulateContract {
     /// invoke the contract in a read-only Soroban host context; that is not
     /// yet exposed as a contract-callable primitive, so we approximate via
     /// ledger-sequence entropy + per-call factors.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for auth, ledger data, and events.
+    /// * `caller` - Address authorizing the simulated request.
+    /// * `contract_id` - Target contract included in the estimate and event.
+    /// * `method` - Non-empty target method name.
+    /// * `args` - Non-empty vector of serialized argument descriptions.
+    ///
+    /// # Preconditions
+    ///
+    /// `caller` must authorize the invocation. Empty `method` or `args` values
+    /// return an unsuccessful `SimResult` rather than trapping.
     pub fn simulate(
         env: Env,
         caller: Address,
@@ -151,7 +164,12 @@ mod tests {
         let args = vec![&env, String::from_str(&env, "arg1")];
 
         let r1 = client.simulate(&caller, &target, &String::from_str(&env, "a"), &args);
-        let r2 = client.simulate(&caller, &target, &String::from_str(&env, "initialize"), &args);
+        let r2 = client.simulate(
+            &caller,
+            &target,
+            &String::from_str(&env, "initialize"),
+            &args,
+        );
 
         assert!(r1.success && r2.success);
         // "initialize" is longer than "a", so its estimate must be higher.

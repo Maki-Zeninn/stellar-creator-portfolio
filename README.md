@@ -71,104 +71,92 @@ Network passphrase: `Test SDF Network ; September 2015`
 
 - Node.js 20+
 - pnpm 9+
-- Rust + `wasm32v1-none` target (`rustup target add wasm32v1-none`)
-- Stellar CLI 27+ (`cargo install --locked stellar-cli`)
+- Rust 1.70+ + `wasm32v1-none` target:
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  rustup target add wasm32v1-none
+  ```
+- Stellar CLI 27+ (includes Soroban contract CLI):
+  ```bash
+  cargo install --locked stellar-cli
+  stellar --version  # verify: should show v27.0.0 or higher
+  ```
+  The `--locked` flag ensures reproducible builds by using the exact dependency versions from the lockfile.
 - PostgreSQL (or a Supabase project)
 
 ### Frontend
 
 ```bash
 pnpm install
-cp .env.example .env.local   # fill in required values
+cp .env.example .env.local
 pnpm dev                      # http://localhost:3000
 pnpm build                    # production build
 ```
 
-### Environment Setup
+### Environment variables
 
-The app supports three environments: **development** (local), **staging** (testnet), and **production** (mainnet). Key differences:
+`.env.example` holds around 70 variables covering every integration the project
+can use. **You do not need most of them to run the app locally.** Copy it, then
+fill in the five below; everything else can stay at its placeholder until you
+touch the feature that needs it.
 
-| Variable | Development | Staging | Production |
-|---|---|---|---|
-| `NEXT_PUBLIC_STELLAR_NETWORK` | `testnet` | `testnet` | `mainnet` |
-| `NEXTAUTH_URL` | `http://localhost:3000` | `https://staging.example.com` | `https://tamgora.com` |
-| `DATABASE_URL` | `localhost:6432/stellar_portfolio` | Supabase staging | Supabase production |
-| `STRIPE_SECRET_KEY` | `sk_test_...` | `sk_test_...` | `sk_live_...` |
-| `SENTRY_ENVIRONMENT` | `development` | `staging` | `production` |
-| `KMS_PROVIDER` | `env` | `env` or `aws` | `aws` |
-| `NEXT_PUBLIC_STELLAR_NETWORK` contract | Testnet contract ID | Testnet contract ID | Mainnet contract ID |
+#### The five you must set
 
-#### Development Setup (Local)
+| Variable | What to put in it |
+|---|---|
+| `DATABASE_URL` | Postgres connection string used for runtime queries. Against the bundled Docker Postgres: `postgresql://postgres:postgres@localhost:6432/stellar_portfolio?schema=public&pgbouncer=true&connection_limit=1` |
+| `DIRECT_DATABASE_URL` | Same database, **direct port, no pooler** — Prisma Migrate only: `postgresql://postgres:postgres@localhost:5432/stellar_portfolio?schema=public` |
+| `NEXTAUTH_SECRET` | Any high-entropy string. Generate one with the command below. |
+| `NEXTAUTH_URL` | `http://localhost:3000` in development. Must match the origin you actually browse to, or OAuth callbacks fail. |
+| `NEXT_PUBLIC_STELLAR_NETWORK` | `testnet` for local work. Only set `mainnet` when deploying against real funds. |
 
-```bash
-# Copy the example and update for local development
-cp .env.example .env.local
-
-# Essential edits to .env.local:
-# - NEXTAUTH_URL=http://localhost:3000
-# - DATABASE_URL points to your local PostgreSQL (port 6432 with PgBouncer)
-# - DIRECT_DATABASE_URL points to localhost:5432
-# - NEXT_PUBLIC_STELLAR_NETWORK=testnet
-# - Stripe/Google keys: leave as-is or populate with test credentials
-# - All NEXT_PUBLIC_* vars are baked into the build, so rebuild after changes
-
-pnpm install
-pnpm dev  # http://localhost:3000
-```
-
-#### Staging Setup (Testnet Supabase)
+Generate the auth secret:
 
 ```bash
-# Create a staging-specific env file
-cp .env.example .env.staging.local
-
-# Update these values:
-# NEXTAUTH_URL=https://staging.example.com
-# NEXT_PUBLIC_SUPABASE_URL=<staging-project-url>
-# NEXT_PUBLIC_SUPABASE_ANON_KEY=<staging-anon-key>
-# SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>
-# DATABASE_URL=<Supabase connection string with PgBouncer, port 6432>
-# DIRECT_DATABASE_URL=<Supabase direct URL, port 5432>
-# NEXT_PUBLIC_STELLAR_NETWORK=testnet
-# CONTRACT_ID=<deployed testnet contract address>
-# Stripe keys: sk_test_... / pk_test_...
-# Google OAuth: populate with staging credentials
-# KMS_PROVIDER=env (or aws with staging Secrets Manager prefix)
-# SENTRY_ENVIRONMENT=staging
-
-pnpm build
-# Verify the build includes testnet RPC URLs:
-grep -r "soroban-testnet" .next/standalone || echo "❌ Testnet RPC not baked in"
+openssl rand -base64 32
+# → 7Qw1kZ9m0uP4rT8vX2yB5nC6dF3gH1jK4lM7oR0sU9w=
 ```
 
-#### Production Setup (Mainnet Supabase)
+Paste that value into `NEXTAUTH_SECRET` in `.env.local`.
+
+#### Two things that catch people out
+
+**`DATABASE_URL` and `DIRECT_DATABASE_URL` are not interchangeable.** The first
+goes through PgBouncer on port **6432** for application queries; the second must
+bypass the pooler on port **5432** because Prisma Migrate needs a session-mode
+connection. Pointing both at the same port produces migrations that hang or fail
+with prepared-statement errors.
+
+**`NEXT_PUBLIC_*` variables are baked in at build time,** not read at runtime.
+Changing one means restarting `pnpm dev` (or rebuilding); editing `.env.local`
+alone will not pick it up. This is also why `NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED`
+exists as a separate flag — a client bundle cannot read the server-only
+`GOOGLE_CLIENT_ID`, so that mirror has to be kept in sync by hand.
+
+#### Optional groups
+
+Leave these alone unless you are working on the feature in question. Each is
+commented in `.env.example` with what it does:
+
+| Group | Variables | Needed for |
+|---|---|---|
+| Supabase | `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY` | Supabase-hosted Postgres and storage |
+| Google sign-in | `GOOGLE_CLIENT_*`, `NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED`, `EXPO_PUBLIC_GOOGLE_*` | "Continue with Google" on web and mobile |
+| Stellar RPC | `NEXT_PUBLIC_STELLAR_RPC_*` | Overriding the default testnet/mainnet RPC endpoints |
+| Contracts | `CONTRACT_ID`, `STELLAR_ADMIN_SECRET` | On-chain escrow and the KYC review flow |
+| Key management | `KMS_PROVIDER`, `KMS_SECRET_PREFIX` | Defaults to `env` locally; `aws` pulls from Secrets Manager |
+| Storage | `AWS_*` | S3 uploads |
+| Payments | `STRIPE_*` | Stripe checkout and webhooks |
+
+#### Check it worked
 
 ```bash
-# Production uses only environment variables set in your deployment platform
-# (Vercel, Railway, etc.) — never create a local .env file with production secrets
-
-# Equivalent production values (set via your deployment platform):
-# NEXTAUTH_URL=https://tamgora.com (or your domain)
-# NEXT_PUBLIC_SUPABASE_URL=<prod-project-url>
-# NEXT_PUBLIC_SUPABASE_ANON_KEY=<prod-anon-key>
-# SUPABASE_SERVICE_ROLE_KEY=<prod-service-role-key>
-# DATABASE_URL=<Supabase production URL with PgBouncer>
-# DIRECT_DATABASE_URL=<Supabase production direct URL>
-# NEXT_PUBLIC_STELLAR_NETWORK=mainnet  # ← CRITICAL: switches RPC to mainnet
-# CONTRACT_ID=<deployed mainnet contract address>
-# Stripe keys: sk_live_... / pk_live_... ← LIVE keys, not test
-# Google OAuth: production credentials
-# KMS_PROVIDER=aws  # Fetch secrets from AWS Secrets Manager
-# SENTRY_ENVIRONMENT=production
-
-# Verify the build will use mainnet (check after Vercel/your platform builds):
-# - Logs should show NEXT_PUBLIC_STELLAR_NETWORK=mainnet
-# - Contract addresses should reference mainnet (start with C for Soroban mainnet)
+pnpm exec prisma migrate deploy   # exits 0 once DATABASE_URL/DIRECT_DATABASE_URL are right
+pnpm dev
 ```
 
-**Critical**: All `NEXT_PUBLIC_*` variables are baked into the build at compile time. Changing these requires a fresh build. When deploying to a new environment, ensure your platform rebuilds the app after setting env vars.
-
-See `.env.example` for the complete list of all variables.
+`pnpm dev` should print `Ready in …` and serve <http://localhost:3000>. A crash
+on boot naming a missing variable means that one still holds its placeholder.
 
 ### Database setup
 
@@ -176,6 +164,20 @@ See `.env.example` for the complete list of all variables.
 pnpm exec prisma migrate deploy
 pnpm exec prisma generate
 ```
+
+To add a small, repeatable demo dataset after the migrations finish, run:
+
+```bash
+pnpm exec prisma db seed
+```
+
+The command uses the connection in `DATABASE_URL` and prints
+`Seeded 2 demo users, 2 profiles, and 1 demo bounty.` when it succeeds. It
+creates `creator@example.com`, `client@example.com`, their matching profiles,
+and an open design bounty. The records use stable IDs and `upsert`, so rerunning
+the command is safe and does not duplicate data. Seeding is intended for local
+development only; verify that `.env.local` points to your local database before
+running it.
 
 ### Smart Contracts
 

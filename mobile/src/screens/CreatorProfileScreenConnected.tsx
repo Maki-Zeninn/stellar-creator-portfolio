@@ -27,6 +27,7 @@ import { useTheme } from "../theme/ThemeProvider";
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from "../theme/tokens";
 import apiClient, { type Creator, type Review, ApiError, NetworkError } from "../services/ApiClient";
 import { useToast } from "../context/ToastContext";
+import { formatDate } from "../utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -303,7 +304,7 @@ export function CreatorProfileScreenConnected({
                     {'⭐'.repeat(review.rating)}
                   </Text>
                   <Text style={[styles.reviewDate, { color: colors.textSecondary }]}>
-                    {new Date(review.createdAt).toLocaleDateString()}
+                    {formatDate(review.createdAt)}
                   </Text>
                 </View>
                 <Text style={[styles.reviewTitle, { color: colors.text }]}>{review.title}</Text>
