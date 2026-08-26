@@ -112,6 +112,20 @@ pnpm exec prisma migrate deploy
 pnpm exec prisma generate
 ```
 
+To add a small, repeatable demo dataset after the migrations finish, run:
+
+```bash
+pnpm exec prisma db seed
+```
+
+The command uses the connection in `DATABASE_URL` and prints
+`Seeded 2 demo users, 2 profiles, and 1 demo bounty.` when it succeeds. It
+creates `creator@example.com`, `client@example.com`, their matching profiles,
+and an open design bounty. The records use stable IDs and `upsert`, so rerunning
+the command is safe and does not duplicate data. Seeding is intended for local
+development only; verify that `.env.local` points to your local database before
+running it.
+
 ### Smart Contracts
 
 Build and deploy contracts to testnet:
