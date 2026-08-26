@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trackEvent } from "@/lib/analytics/analytics";
+import { formatDate } from "@/lib/utils";
 
 interface ApiKeyRecord {
   id: string;
@@ -149,9 +150,9 @@ export function ApiKeysManager() {
                   <p className="font-medium">{key.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Scopes: {key.scopes.join(", ")} · Created{" "}
-                    {new Date(key.createdAt).toLocaleDateString()}
+                    {formatDate(key.createdAt, 'default')}
                     {key.lastUsedAt &&
-                      ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`}
+                      ` · Last used ${formatDate(key.lastUsedAt, 'default')}`}
                   </p>
                   <div className="mt-2 h-8 w-48 rounded bg-muted/60 flex items-center justify-center text-xs text-muted-foreground">
                     Usage graph (requests/day)

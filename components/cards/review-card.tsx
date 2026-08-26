@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ThumbsUp, ThumbsDown, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StarRating } from '@/components/widgets/rating-display';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import type { Review } from '@/lib/services/review-service';
 
 interface ReviewCardProps {
@@ -44,11 +44,7 @@ export function ReviewCard({ review, currentUserId, userVote, onVote }: ReviewCa
     onVote(review.id, vote);
   };
 
-  const formattedDate = new Date(review.createdAt).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  const formattedDate = formatDate(review.createdAt, 'full');
 
   return (
     <article className="bg-card border border-border rounded-lg p-5 space-y-3">

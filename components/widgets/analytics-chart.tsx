@@ -26,6 +26,7 @@ import {
   ChartLegendContent,
   type ChartConfig,
 } from '@/components/ui/chart'
+import { formatDate } from '@/lib/utils'
 
 // ─── Earnings Area Chart ────────────────────────────────────────────────────
 
@@ -63,8 +64,7 @@ export function EarningsChart({ data }: EarningsChartProps) {
           tickMargin={8}
           tickFormatter={(v: string) => {
             if (v.length === 7) return v  // monthly "2025-03"
-            const d = new Date(v)
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            return formatDate(v, 'month-day')
           }}
         />
         <YAxis

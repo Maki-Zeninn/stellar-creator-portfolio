@@ -22,14 +22,53 @@ export function formatCurrency(amount: number, currency = 'USD', maximumFraction
 
 /**
  * Format an ISO date string or Date object as a localised date.
+ * Supports multiple format types via the `type` parameter.
  * @example formatDate('2025-08-12') // "Aug 12, 2025"
+ * @example formatDate('2025-08-12', 'month-year') // "Aug 2025"
+ * @example formatDate('2025-08-12', 'month-day') // "Aug 12"
+ * @example formatDate('2025-08-12', 'date-time') // "Aug 12, 2025, 02:30 PM"
+ * @example formatDate('2025-08-12', 'default') // "8/12/2025" (browser default)
  */
-export function formatDate(date: string | Date): string {
+export function formatDate(
+  date: string | Date,
+  type: 'default' | 'month-day' | 'month-year' | 'date-time' = 'full'
+): string {
+  const dateObj = new Date(date);
+
+  if (type === 'default') {
+    return dateObj.toLocaleDateString();
+  }
+
+  if (type === 'month-day') {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+    }).format(dateObj);
+  }
+
+  if (type === 'month-year') {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      year: 'numeric',
+    }).format(dateObj);
+  }
+
+  if (type === 'date-time') {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(dateObj);
+  }
+
+  // 'full' - default to year, month, day
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(date));
+  }).format(dateObj);
 }
 
 /**

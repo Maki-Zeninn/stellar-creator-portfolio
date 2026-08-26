@@ -15,6 +15,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity
 } from 'lucide-react'
 import { trpc } from '@/lib/trpc-client'
+import { formatDate } from '@/lib/utils'
 
 type AnalyticsPeriod = '7d' | '30d' | '90d' | '1y'
 
@@ -290,7 +291,7 @@ export function AnalyticsDashboard() {
                       <p className="text-sm text-muted-foreground">{project.category}</p>
                     </div>
                     <Badge variant="outline">
-                      {new Date(project.createdAt).toLocaleDateString()}
+                      {formatDate(project.createdAt, 'default')}
                     </Badge>
                   </div>
                 ))}

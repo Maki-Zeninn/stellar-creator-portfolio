@@ -2,7 +2,7 @@
 
 export function CardSkeleton() {
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden animate-pulse">
+    <div className="bg-card border border-border rounded-lg overflow-hidden animate-shimmer">
       <div className="aspect-video bg-muted" />
       <div className="p-6 space-y-4">
         <div className="h-6 bg-muted rounded w-3/4" />
@@ -32,7 +32,7 @@ export function CardSkeletonGrid({ count = 3 }: { count?: number }) {
 
 export function TextSkeleton({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="space-y-2 animate-pulse">
+    <div className="space-y-2 animate-shimmer">
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
@@ -48,7 +48,7 @@ export function TextSkeleton({ lines = 3 }: { lines?: number }) {
 
 export function BountySkeleton() {
   return (
-    <div className="bg-card border border-border rounded-lg p-6 animate-pulse space-y-4">
+    <div className="bg-card border border-border rounded-lg p-6 animate-shimmer space-y-4">
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="h-6 bg-muted rounded w-3/4 mb-2" />
@@ -63,6 +63,34 @@ export function BountySkeleton() {
       <div className="flex gap-2 pt-2">
         <div className="h-6 bg-muted rounded px-3 w-20" />
         <div className="h-6 bg-muted rounded px-3 w-20" />
+      </div>
+    </div>
+  );
+}
+
+export function FormSkeleton() {
+  return (
+    <div className="bg-card border border-border rounded-lg p-6 space-y-6 animate-shimmer">
+      <div className="space-y-2">
+        <div className="h-5 bg-muted rounded w-24" />
+        <div className="h-4 bg-muted rounded w-3/4" />
+      </div>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <div className="h-4 bg-muted rounded w-20" />
+          <div className="h-10 bg-muted rounded w-full" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 bg-muted rounded w-20" />
+          <div className="h-10 bg-muted rounded w-full" />
+        </div>
+        <div className="h-10 bg-muted rounded w-full" />
+      </div>
+      <div className="space-y-2">
+        <div className="h-4 bg-muted rounded w-32" />
+        <button className="text-sm font-medium text-muted-foreground">
+          Create one
+        </button>
       </div>
     </div>
   );

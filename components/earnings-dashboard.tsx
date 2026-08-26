@@ -13,7 +13,7 @@ import {
   computeSummary,
   type EarningTransaction,
 } from '@/lib/earnings-data'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 const PAGE_SIZE = 5
 
@@ -230,7 +230,7 @@ export function EarningsDashboard() {
                 ) : paginated.map((tx) => (
                   <tr key={tx.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                      {new Date(tx.date).toLocaleDateString()}
+                      {formatDate(tx.date, 'default')}
                     </td>
                     <td className="px-4 py-3 max-w-[200px] truncate" title={tx.bountyTitle}>
                       {tx.bountyTitle}
