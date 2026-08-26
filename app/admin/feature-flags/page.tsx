@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { UserTableSkeleton } from '@/components/ui/skeleton-group';
 
 interface FlagRow {
   id: string;
@@ -105,8 +106,12 @@ export default function FeatureFlagsAdminPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Loading feature flags…
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="mb-8">
+          <div className="h-8 bg-muted rounded w-48 mb-2 animate-pulse" />
+          <div className="h-4 bg-muted rounded w-96 animate-pulse" />
+        </div>
+        <UserTableSkeleton rows={8} />
       </div>
     );
   }
