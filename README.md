@@ -82,7 +82,8 @@ Network passphrase: `Test SDF Network ; September 2015`
   stellar --version  # verify: should show v27.0.0 or higher
   ```
   The `--locked` flag ensures reproducible builds by using the exact dependency versions from the lockfile.
-- PostgreSQL (or a Supabase project)
+- PostgreSQL 16+ (or a Supabase project) — a Docker Compose file is included
+  for local development, see [Database setup](#database-setup) below
 
 ### Frontend
 
@@ -152,6 +153,7 @@ commented in `.env.example` with what it does:
 
 ```bash
 pnpm exec prisma migrate deploy   # exits 0 once DATABASE_URL/DIRECT_DATABASE_URL are right
+pnpm exec prisma generate
 pnpm dev
 ```
 
@@ -160,24 +162,77 @@ on boot naming a missing variable means that one still holds its placeholder.
 
 ### Database setup
 
+#### Option A — Local Postgres via Docker (recommended)
+
+The fastest way to get a working database is the included Docker Compose file.
+It starts Postgres 16, PgBouncer, and (optionally) pgAdmin in a single command.
+
 ```bash
-pnpm exec prisma migrate deploy
-pnpm exec prisma generate
+cd backend
+docker compose up -d postgres   # starts Postgres + PgBouncer
+docker compose ps               # verify: postgres should show "healthy"
 ```
 
-To add a small, repeatable demo dataset after the migrations finish, run:
+Once running, set these two variables in `.env.local` (the values match the
+Docker Compose defaults exactly):
+
+```bash
+DATABASE_URL="postgresql://postgres:postgres@localhost:6432/stellar_portfolio?schema=public&pgbouncer=true&connection_limit=1"
+DIRECT_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/stellar_portfolio?schema=public"
+```
+
+| Variable | Port | Purpose |
+|---|---|---|
+| `DATABASE_URL` | 6432 (PgBouncer) | Application runtime queries — connection-pooled |
+| `DIRECT_DATABASE_URL` | 5432 (Postgres) | Prisma Migrate only — must bypass PgBouncer |
+
+> **Why two ports?** PgBouncer on 6432 multiplexes connections for efficiency,
+> but Prisma Migrate needs a raw session-mode connection, so it must hit the
+> direct port 5432. Pointing both at the same port causes migrations to hang
+> or fail with prepared-statement errors.
+
+#### Option B — Supabase or external Postgres
+
+If you already have a Postgres instance (Supabase, Neon, etc.), use the
+connection strings from your provider's dashboard. You still need **two**
+URLs — a pooled one for runtime and a direct one for migrations — even if
+your provider exposes only a single port.
+
+#### Running migrations and generating the client
+
+```bash
+pnpm exec prisma migrate deploy   # applies pending migrations
+pnpm exec prisma generate          # generates Prisma Client
+```
+
+You should see output similar to:
+
+```
+Applying migration(s) ...
+Database migration(s) applied successfully
+```
+
+If `migrate deploy` fails with `connection refused` or `password auth failed`,
+double-check that your Postgres instance is running and the credentials in
+`.env.local` match.
+
+#### Seeding demo data (optional)
 
 ```bash
 pnpm exec prisma db seed
 ```
 
-The command uses the connection in `DATABASE_URL` and prints
-`Seeded 2 demo users, 2 profiles, and 1 demo bounty.` when it succeeds. It
-creates `creator@example.com`, `client@example.com`, their matching profiles,
-and an open design bounty. The records use stable IDs and `upsert`, so rerunning
-the command is safe and does not duplicate data. Seeding is intended for local
-development only; verify that `.env.local` points to your local database before
-running it.
+Expected output on success:
+
+```
+Seeded 2 demo users, 2 profiles, and 1 demo bounty.
+```
+
+The seed script creates `creator@example.com`, `client@example.com`, their
+matching profiles, and an open design bounty. Records use stable IDs and
+`upsert`, so rerunning is safe and never duplicates data. Seeding is for
+local development only — verify `.env.local` points to your local database
+before running it.
 
 ### Smart Contracts
 
