@@ -9,7 +9,8 @@ import { ReviewForm } from '@/components/review-form';
 import { ErrorAlert } from '@/components/error-alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ChevronLeft, ChevronRight, Info, Star } from 'lucide-react';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+import { CheckCircle, Info, Star } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -322,32 +323,17 @@ export function CreatorReputation({ creatorId }: { creatorId: string }) {
 
             {/* Pagination */}
             {reviews && reviews.totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-6 border-t">
-                <div className="text-sm text-muted-foreground">
-                  Page {reviews.page} of {reviews.totalPages}
-                  ({reviews.totalCount} total reviews)
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(reviews.page - 1)}
-                    disabled={!reviews.hasPrev || isLoading}
-                  >
-                    <ChevronLeft size={16} />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(reviews.page + 1)}
-                    disabled={!reviews.hasNext || isLoading}
-                  >
-                    Next
-                    <ChevronRight size={16} />
-                  </Button>
-                </div>
-              </div>
+              <PaginationControls
+                page={reviews.page}
+                totalPages={reviews.totalPages}
+                onPageChange={handlePageChange}
+                hasPrev={reviews.hasPrev}
+                hasNext={reviews.hasNext}
+                disabled={isLoading}
+                showIcons
+                label={`Page ${reviews.page} of ${reviews.totalPages} (${reviews.totalCount} total reviews)`}
+                className="mt-6 pt-6 border-t"
+              />
             )}
           </div>
         </div>
