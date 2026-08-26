@@ -61,7 +61,7 @@ export default function AboutPage() {
         {/* Mission Section */}
         <section className="py-16 sm:py-24">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mb-16">
               <div>
                 <h2 className="text-3xl font-bold text-foreground mb-6">Our Mission</h2>
                 <p className="text-lg text-muted-foreground leading-relaxed mb-4">
@@ -82,7 +82,7 @@ export default function AboutPage() {
             {/* Values Section */}
             <div>
               <h2 className="text-3xl font-bold text-foreground mb-8 text-center">Our Values</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
                 {/* Value 1 */}
                 <div className="bg-card border border-border/60 rounded-lg p-8 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-2 transition-all duration-300 ease-out cursor-pointer group">
                   <div className="w-12 h-12 bg-primary/20 group-hover:bg-primary/30 rounded-lg flex items-center justify-center mb-4 transition-colors duration-200">
@@ -164,7 +164,7 @@ export default function AboutPage() {
         <section className="py-16 sm:py-24">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-bold text-foreground mb-12 text-center">Our Impact</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 lg:gap-10">
               <div className="text-center">
                 <div className="text-5xl font-bold text-primary mb-2">4+</div>
                 <p className="text-muted-foreground">Tamgora Creators</p>
