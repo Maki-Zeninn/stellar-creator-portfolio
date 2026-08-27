@@ -19,7 +19,7 @@ const DEFAULT_WS_PONG_DEADLINE_SECS: u64 = 10;
 /// Close connections that receive no message for this long (seconds).
 const DEFAULT_WS_IDLE_TIMEOUT_SECS: u64 = 300;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WsConnectionLimiter {
     per_ip_limit: usize,
     global_limit: usize,

@@ -36,7 +36,16 @@ pub struct StorageContract;
 impl StorageContract {
     // ── Write helpers ────────────────────────────────────────────────────────
 
-    /// Persist a profile and immediately bump its TTL.
+    /// Persists a profile and immediately refreshes its TTL.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for persistent storage.
+    /// * `profile` - Complete profile record to store under its owner address.
+    ///
+    /// # Preconditions
+    ///
+    /// The profile owner must authorize the invocation.
     pub fn set_profile(env: Env, profile: Profile) {
         profile.owner.require_auth();
         let key = StorageKey::Profile(profile.owner.clone());
@@ -44,14 +53,36 @@ impl StorageContract {
         Self::bump_persistent(&env, &key);
     }
 
-    /// Persist a bounty state value and bump TTL.
-    pub fn set_bounty_state(env: Env, bounty_id: u64, state: u32) {
+    /// Persists a bounty state value and refreshes its TTL.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for persistent storage.
+    /// * `account` - Address responsible for, and authorizing, the update.
+    /// * `bounty_id` - Identifier used as the persistent storage key.
+    /// * `state` - Application-defined numeric bounty state.
+    ///
+    /// # Preconditions
+    ///
+    /// `account` must authorize the invocation.
+    pub fn set_bounty_state(env: Env, account: Address, bounty_id: u64, state: u32) {
+        account.require_auth();
         let key = StorageKey::BountyState(bounty_id);
         env.storage().persistent().set(&key, &state);
         Self::bump_persistent(&env, &key);
     }
 
-    /// Persist an escrow balance and bump TTL.
+    /// Persists an escrow balance and refreshes its TTL.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for persistent storage.
+    /// * `account` - Address used as the key and invocation authorizer.
+    /// * `balance` - Signed balance to store; domain validation is left to the caller.
+    ///
+    /// # Preconditions
+    ///
+    /// `account` must authorize the invocation.
     pub fn set_escrow_balance(env: Env, account: Address, balance: i128) {
         account.require_auth();
         let key = StorageKey::EscrowBalance(account);
@@ -61,7 +92,15 @@ impl StorageContract {
 
     // ── Read helpers ─────────────────────────────────────────────────────────
 
-    /// Read a profile, bumping TTL on access to prevent expiry.
+    /// Reads a profile and refreshes its TTL when found.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for persistent storage.
+    /// * `owner` - Profile owner address used as the lookup key.
+    ///
+    /// Returns `None` when the profile does not exist. No authorization is
+    /// required.
     pub fn get_profile(env: Env, owner: Address) -> Option<Profile> {
         let key = StorageKey::Profile(owner);
         let value = env.storage().persistent().get::<StorageKey, Profile>(&key);
@@ -71,7 +110,15 @@ impl StorageContract {
         value
     }
 
-    /// Read a bounty state, bumping TTL on access.
+    /// Reads a bounty state and refreshes its TTL when found.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for persistent storage.
+    /// * `bounty_id` - Bounty identifier used as the lookup key.
+    ///
+    /// Returns `None` when the bounty state does not exist. No authorization
+    /// is required.
     pub fn get_bounty_state(env: Env, bounty_id: u64) -> Option<u32> {
         let key = StorageKey::BountyState(bounty_id);
         let value = env.storage().persistent().get::<StorageKey, u32>(&key);
@@ -81,7 +128,15 @@ impl StorageContract {
         value
     }
 
-    /// Read an escrow balance, bumping TTL on access.
+    /// Reads an escrow balance and refreshes its TTL when found.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - Soroban host environment used for persistent storage.
+    /// * `account` - Account address used as the lookup key.
+    ///
+    /// Returns `None` when the balance does not exist. No authorization is
+    /// required.
     pub fn get_escrow_balance(env: Env, account: Address) -> Option<i128> {
         let key = StorageKey::EscrowBalance(account);
         let value = env.storage().persistent().get::<StorageKey, i128>(&key);
@@ -132,9 +187,20 @@ mod tests {
         let contract_id = env.register_contract(None, StorageContract);
         let client = StorageContractClient::new(&env, &contract_id);
 
-        client.set_bounty_state(&1u64, &2u32);
+        let owner = Address::generate(&env);
+        client.set_bounty_state(&owner, &1u64, &2u32);
         let state = client.get_bounty_state(&1u64).expect("state should exist");
         assert_eq!(state, 2u32);
+    }
+
+    #[test]
+    fn set_bounty_state_requires_auth() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, StorageContract);
+        let client = StorageContractClient::new(&env, &contract_id);
+        let owner = Address::generate(&env);
+        let result = client.try_set_bounty_state(&owner, &1u64, &2u32);
+        assert!(result.is_err());
     }
 
     #[test]

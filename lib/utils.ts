@@ -12,24 +12,63 @@ export function cn(...inputs: ClassValue[]) {
  * @example formatCurrency(3000) // "$3,000"
  * @example formatCurrency(1500, 'EUR') // "€1,500"
  */
-export function formatCurrency(amount: number, currency = 'USD'): string {
+export function formatCurrency(amount: number, currency = 'USD', maximumFractionDigits = 0): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
-    maximumFractionDigits: 0,
+    maximumFractionDigits,
   }).format(amount);
 }
 
 /**
  * Format an ISO date string or Date object as a localised date.
+ * Supports multiple format types via the `type` parameter.
  * @example formatDate('2025-08-12') // "Aug 12, 2025"
+ * @example formatDate('2025-08-12', 'month-year') // "Aug 2025"
+ * @example formatDate('2025-08-12', 'month-day') // "Aug 12"
+ * @example formatDate('2025-08-12', 'date-time') // "Aug 12, 2025, 02:30 PM"
+ * @example formatDate('2025-08-12', 'default') // "8/12/2025" (browser default)
  */
-export function formatDate(date: string | Date): string {
+export function formatDate(
+  date: string | Date,
+  type: 'default' | 'month-day' | 'month-year' | 'date-time' = 'full'
+): string {
+  const dateObj = new Date(date);
+
+  if (type === 'default') {
+    return dateObj.toLocaleDateString();
+  }
+
+  if (type === 'month-day') {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+    }).format(dateObj);
+  }
+
+  if (type === 'month-year') {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      year: 'numeric',
+    }).format(dateObj);
+  }
+
+  if (type === 'date-time') {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(dateObj);
+  }
+
+  // 'full' - default to year, month, day
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(new Date(date));
+  }).format(dateObj);
 }
 
 /**
@@ -120,4 +159,46 @@ export function getInitials(name: string): string {
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase() ?? '')
     .join('');
+ * Format a byte count as a human-readable file size (e.g. "4.2 MB").
+ * Assumes `bytes` is a non-negative integer; base-1024 units (KB/MB/GB),
+ * not base-1000, matching how OS file browsers typically display size.
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / Math.pow(1024, exponent);
+  return `${exponent === 0 ? value : value.toFixed(1)} ${units[exponent]}`;
+}
+
+/**
+ * Parse a raw bounty status string into a normalized status label.
+ * Assumes `status` is one of the known lowercase/snake_case values used by
+ * the bounty API; anything else falls back to "Unknown" rather than throwing,
+ * since this is used directly in UI rendering.
+ */
+export function parseBountyStatus(status: string): string {
+  const map: Record<string, string> = {
+    open: 'Open',
+    in_progress: 'In Progress',
+    submitted: 'Submitted',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+    expired: 'Expired',
+  };
+  return map[status?.toLowerCase()] ?? 'Unknown';
+}
+
+/**
+ * Generate avatar initials from a name (up to 2 characters, uppercase).
+ * @example getAvatarInitials('John Doe') // "JD"
+ * @example getAvatarInitials('Sarah') // "S"
+ */
+export function getAvatarInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Stellar",
-    "slug": "stellar-creator-portfolio",
+    "name": "Tamgora",
+    "slug": "tamgora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,13 +17,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.stellar.creatorportfolio",
-      "associatedDomains": ["applinks:stellar.app", "applinks:www.stellar.app"],
+      "bundleIdentifier": "com.tamgora.app",
+      "associatedDomains": ["applinks:tamgora.app", "applinks:www.tamgora.app"],
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Stellar needs access to your photo library to upload portfolio images.",
-        "NSCameraUsageDescription": "Stellar needs camera access to capture portfolio photos.",
-        "NSPhotoLibraryAddUsageDescription": "Stellar needs permission to save photos to your library.",
-        "NSFaceIDUsageDescription": "Stellar uses Face ID or Touch ID to securely authenticate portfolio access."
+        "NSPhotoLibraryUsageDescription": "Tamgora needs access to your photo library to upload portfolio images.",
+        "NSCameraUsageDescription": "Tamgora needs camera access to capture portfolio photos.",
+        "NSPhotoLibraryAddUsageDescription": "Tamgora needs permission to save photos to your library.",
+        "NSFaceIDUsageDescription": "Tamgora uses Face ID or Touch ID to securely authenticate portfolio access."
       }
     },
     "android": {
@@ -31,7 +31,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0f172a"
       },
-      "package": "com.stellar.creatorportfolio",
+      "package": "com.tamgora.app",
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
@@ -45,7 +45,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "stellar.app",
+              "host": "tamgora.app",
               "pathPrefix": "/"
             }
           ],
@@ -55,7 +55,7 @@
           "action": "VIEW",
           "data": [
             {
-              "scheme": "stellar",
+              "scheme": "tamgora",
               "host": "wc"
             }
           ],
@@ -67,7 +67,7 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "scheme": "stellar",
+    "scheme": "tamgora",
     "plugins": [
       "expo-router",
       "expo-localization",
@@ -76,9 +76,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Stellar needs access to your photo library to upload portfolio images.",
-          "cameraPermission": "Stellar needs camera access to capture and upload portfolio photos.",
-          "microphonePermission": "Stellar needs microphone access to record portfolio videos."
+          "photosPermission": "Tamgora needs access to your photo library to upload portfolio images.",
+          "cameraPermission": "Tamgora needs camera access to capture and upload portfolio photos.",
+          "microphonePermission": "Tamgora needs microphone access to record portfolio videos."
         }
       ],
       [
@@ -96,7 +96,7 @@
       ]
     ],
     "extra": {
-      "eas": { "projectId": "stellar-creator-portfolio" }
+      "eas": { "projectId": "tamgora" }
     }
   }
 }

@@ -21,6 +21,7 @@ import {
   unloadAudioAsync,
 } from '../services/AudioPlaybackService';
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from '../theme/tokens';
+import AdaptiveVideoPlayer from '../components/AdaptiveVideoPlayer';
 
 const SAMPLE_TRACK = {
   uri: 'https://storage.googleapis.com/expo-samples/reef.mp3',
@@ -100,7 +101,7 @@ export function AudioPlaybackScreen() {
         <Text style={[styles.header, { color: colors.text }]}>Mobile Audio Playback</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Native background audio with lock-screen ready playback state.</Text>
         <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}> 
-          <Text style={[styles.trackTitle, { color: colors.text }]}>Stellar Creator Sample Track</Text>
+          <Text style={[styles.trackTitle, { color: colors.text }]}>Tamgora Creator Sample Track</Text>
           <Text style={[styles.trackMeta, { color: colors.textSecondary }]}>Secure streaming + buffer-ready playback</Text>
           <View style={styles.statusBadge}> 
             <Text style={[styles.statusText, { color: colors.primary }]}>{statusText}</Text>

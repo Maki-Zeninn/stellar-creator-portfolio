@@ -40,6 +40,12 @@ pub const DEFAULT_PLATFORM_FEE_CAP: i128 = 500;
 /// After this window anyone can call `resolve_expired_dispute` for a 50/50 split.
 pub const DISPUTE_TIMEOUT_SECS: u64 = 30 * 24 * 3600;
 
+/// Bounds for the governance-configurable oracle freshness threshold (#1110).
+/// A value of 0 would mark every recorded price stale immediately, while an
+/// unbounded value would defeat the freshness guard entirely.
+pub const MIN_ORACLE_STALENESS_SECS: u64 = 60;
+pub const MAX_ORACLE_STALENESS_SECS: u64 = 86_400;
+
 /// Governance-configurable fee configuration stored on-chain (#722).
 #[contracttype]
 #[derive(Clone, Debug)]
@@ -154,6 +160,17 @@ pub struct YieldAccrual {
 
 
 
+/// Mirrors `oracle::PriceData` field-for-field so the cross-contract call in
+/// `release_funds` can decode the oracle's return value without a crate
+/// dependency on the oracle contract itself.
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct OraclePriceData {
+    pub price_micro_usd: i128,
+    pub timestamp: u64,
+    pub sources: u32,
+}
+
 #[contract]
 pub struct EscrowContract;
 
@@ -171,6 +188,7 @@ impl EscrowContract {
     ) -> u64 {
         payer.require_auth();
         assert!(amount > 0, "Amount must be positive");
+        let _guard = ReentrancyGuard::acquire(&env);
 
         // #179: Validate token implements the SEP-41 interface before accepting funds.
         // Calling balance() will trap if `token` is not a valid token contract,
@@ -243,52 +261,28 @@ impl EscrowContract {
         let key = (Symbol::new(&env, "escrow"), escrow_id);
         let mut escrow = env.storage().persistent().get::<(Symbol, u64), EscrowAccount>(&key).expect("Escrow not found");
 
-        require_authorized_party(authorizer == escrow.payer || authorizer == escrow.payee);
-        require_active_escrow(escrow.status == EscrowStatus::Active);
-        assert!(Self::can_release(env.clone(), escrow_id), "Release condition not met");
-
-        // EFFECTS – mutate state before any cross-contract call
-        authorizer.require_auth();
-
-        let key = (Symbol::new(&env, "escrow"), escrow_id);
-        let mut escrow = env
-            .storage()
-            .persistent()
-            .get::<(Symbol, u64), EscrowAccount>(&key)
-            .expect("Escrow not found");
-
         assert!(
             authorizer == escrow.payer || authorizer == escrow.payee,
             "Unauthorized"
         );
         assert!(escrow.status == EscrowStatus::Active, "Escrow not active");
-        assert!(
-            Self::can_release(env.clone(), escrow_id),
-            "Release condition not met"
-        );
+        assert!(Self::can_release(env.clone(), escrow_id), "Release condition not met");
 
+        // EFFECTS – mutate state before any cross-contract call
 
         // Issue #725: Oracle price freshness check before release
         if let Some(oracle_addr) = env.storage().persistent().get::<DataKey, Address>(&DataKey::OracleAddress) {
             let max_staleness = Self::get_oracle_staleness_secs(&env);
-            let price_data: soroban_sdk::Vec<soroban_sdk::Val> = env
-                .invoke_contract(
-                    &oracle_addr,
-                    &Symbol::new(&env, "get_price"),
-                    soroban_sdk::Vec::new(&env),
-                );
-            let timestamp: u64 = price_data
-                .get(1)
-                .expect("Oracle returned invalid price data")
-                .try_into()
-                .unwrap_or(0);
-            let age_secs = env.ledger().timestamp().saturating_sub(timestamp);
+            let price_data: OraclePriceData = env.invoke_contract(
+                &oracle_addr,
+                &Symbol::new(&env, "get_price"),
+                soroban_sdk::Vec::new(&env),
+            );
+            let age_secs = env.ledger().timestamp().saturating_sub(price_data.timestamp);
             if age_secs > max_staleness {
                 panic!("Oracle price feed is stale");
             }
         }
-        TokenClient::new(&env, &escrow.token)
-            .transfer(&env.current_contract_address(), &escrow.payee, &escrow.amount);
 
         escrow.status = EscrowStatus::Released;
         escrow.released_at = Some(env.ledger().timestamp());
@@ -320,13 +314,8 @@ impl EscrowContract {
             .get::<(Symbol, u64), EscrowAccount>(&key)
             .expect("Escrow not found");
 
-        require_authorized_party(authorizer == escrow.payer);
-        require_active_escrow(escrow.status == EscrowStatus::Active);
         assert_eq!(authorizer, escrow.payer, "Only payer can refund");
         assert!(escrow.status == EscrowStatus::Active, "Escrow not active");
-
-        TokenClient::new(&env, &escrow.token)
-            .transfer(&env.current_contract_address(), &escrow.payer, &escrow.amount);
 
         // EFFECTS – mutate state before any cross-contract call
         escrow.status = EscrowStatus::Refunded;
@@ -349,6 +338,7 @@ impl EscrowContract {
     /// Refund an expired bounty's escrow to the payer. Called by the bounty contract when expiring.
     pub fn refund_expired_bounty(env: Env, bounty_id: u64, bounty_contract: Address) -> bool {
         bounty_contract.require_auth();
+        let _guard = ReentrancyGuard::acquire(&env);
 
         let escrow_id = Self::get_escrow_id_for_bounty(env.clone(), bounty_id);
         assert!(escrow_id > 0, "No escrow for bounty");
@@ -417,6 +407,7 @@ impl EscrowContract {
         release_to_payee: bool,
     ) -> bool {
         admin.require_auth();
+        let _guard = ReentrancyGuard::acquire(&env);
 
         // Verify caller is the stored platform admin
         let admin_key = Symbol::new(&env, "platform_admin");
@@ -489,6 +480,8 @@ impl EscrowContract {
     ///   - escrow is not in Disputed state
     ///   - the expiry window has not yet elapsed
     pub fn resolve_expired_dispute(env: Env, escrow_id: u64) -> bool {
+        let _guard = ReentrancyGuard::acquire(&env);
+
         let key = (Symbol::new(&env, "escrow"), escrow_id);
         let mut escrow = env
             .storage()
@@ -978,6 +971,7 @@ impl EscrowContract {
     /// ensuring payers can always retrieve their funds.
     pub fn withdraw_yield(env: Env, admin: Address, escrow_id: u64) -> i128 {
         admin.require_auth();
+        let _guard = ReentrancyGuard::acquire(&env);
 
         let stored_admin: Address = env
             .storage()
@@ -1061,8 +1055,6 @@ impl EscrowContract {
             new_wasm_hash,
         );
     }
-}
-
 
     // ---- Issue #722: Governance-controlled platform fee update ----
 
@@ -1078,7 +1070,7 @@ impl EscrowContract {
             .expect("Platform admin not set");
         assert_eq!(admin, stored_admin, "Only governance multisig can update fee");
         assert!(new_bps >= 0, "Fee BPS must be non-negative");
-        assert!(new_bps <= 10_000, "Fee BPS must not exceed 10_000");
+        assert!(new_bps <= 1_000, "Fee BPS must not exceed 1_000 (10%)");
         assert!(new_cap >= 0, "Fee cap must be non-negative");
         env.storage().persistent().set(&DataKey::FeeConfig, &FeeConfig {
             fee_bps: new_bps,
@@ -1110,6 +1102,8 @@ impl EscrowContract {
             .get::<Symbol, Address>(&Symbol::new(&env, "platform_admin"))
             .expect("Platform admin not set");
         assert_eq!(admin, stored_admin, "Only governance multisig can set staleness");
+        assert!(staleness_secs >= MIN_ORACLE_STALENESS_SECS, "Staleness must be at least 60 seconds");
+        assert!(staleness_secs <= MAX_ORACLE_STALENESS_SECS, "Staleness must not exceed 86_400 seconds");
         env.storage().persistent().set(&DataKey::OracleStalenessSecs, &staleness_secs);
     }
 
@@ -1124,6 +1118,8 @@ impl EscrowContract {
         assert_eq!(admin, stored_admin, "Only governance multisig can set oracle");
         env.storage().persistent().set(&DataKey::OracleAddress, &oracle);
     }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

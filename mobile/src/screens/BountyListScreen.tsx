@@ -227,7 +227,7 @@ export function BountyListScreen({
         Alert.alert(
           "Error Loading Bounties",
           errorMessage,
-          [{ text: "Retry", onPress: () => window.location.reload() }]
+          [{ text: "Retry", onPress: () => fetchBounties() }]
         );
         
         return [];

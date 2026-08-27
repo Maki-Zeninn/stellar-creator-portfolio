@@ -1,6 +1,6 @@
 import { BadgeCheck, Clock, Star, Zap, Award, TrendingUp } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import type { VerificationStatus, SpecialBadge } from '@/lib/services/creators-data';
 
 interface VerificationBadgeProps {
@@ -20,7 +20,7 @@ export function VerificationBadge({ status, verifiedAt, size = 'md', showLabel =
   if (status === 'unverified') return null;
 
   const iconSize = sizeMap[size];
-  const date = verifiedAt ? new Date(verifiedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null;
+  const date = verifiedAt ? formatDate(verifiedAt, 'month-year') : null;
 
   if (status === 'pending') {
     return (
@@ -75,7 +75,7 @@ const specialBadgeConfig: Record<SpecialBadge, { icon: React.ElementType; label:
     icon: Award,
     label: 'Certified',
     color: 'text-purple-500',
-    description: 'Passed Stellar skills certification',
+    description: 'Passed Tamgora skills certification',
   },
   'rising-star': {
     icon: TrendingUp,

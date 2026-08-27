@@ -63,7 +63,7 @@ export function BiometricAuthScreen() {
     const result = await authenticateBiometric();
     if (result.success) {
       setStatus("authenticated");
-      setMessage("Authentication succeeded. Welcome back to Stellar.");
+      setMessage("Authentication succeeded. Welcome back to Tamgora.");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
       setStatus("available");
@@ -89,7 +89,7 @@ export function BiometricAuthScreen() {
             Secure access
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Use Face ID or Touch ID to unlock Stellar securely with native
+            Use Face ID or Touch ID to unlock Tamgora securely with native
             biometric capabilities.
           </Text>
 

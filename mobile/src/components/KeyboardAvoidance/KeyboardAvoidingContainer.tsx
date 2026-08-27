@@ -1,16 +1,18 @@
 /**
  * Keyboard Avoiding View Component
- * Automatically adjusts view position when keyboard appears
+ * Automatically adjusts view position when keyboard appears.
+ *
+ * Uses the `useKeyboardAvoidance` hook's animated translateY exclusively.
+ * The native KeyboardAvoidingView has been intentionally removed to avoid
+ * double-compensation on iOS (both mechanisms react to the same keyboard
+ * event and would shift content up by ~2× the keyboard height).
  */
 
 import React, { useMemo } from 'react';
 import {
   Animated,
-  View,
   ViewProps,
   StyleSheet,
-  Platform,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { useKeyboardAvoidance } from '../../hooks/useKeyboardAvoidance';
 
@@ -25,7 +27,7 @@ export const KeyboardAvoidingContainer: React.FC<KeyboardAvoidingContainerProps>
   style,
   ...props
 }) => {
-  const { animatedValue, isVisible } = useKeyboardAvoidance();
+  const { animatedValue } = useKeyboardAvoidance();
 
   const animatedStyle = useMemo(
     () => ({
@@ -35,29 +37,21 @@ export const KeyboardAvoidingContainer: React.FC<KeyboardAvoidingContainerProps>
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+    <Animated.View
+      style={[
+        styles.container,
+        animatedStyle,
+        style,
+      ]}
+      {...props}
     >
-      <Animated.View
-        style={[
-          styles.content,
-          animatedStyle,
-          style,
-        ]}
-        {...props}
-      >
-        {children}
-      </Animated.View>
-    </KeyboardAvoidingView>
+      {children}
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  content: {
     flex: 1,
   },
 });

@@ -24,13 +24,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${bounty.title} — ${budgetStr}`,
     description: `${bounty.description.substring(0, 160)} Budget: ${budgetStr}. Category: ${bounty.category}.`,
     openGraph: {
-      title: `${bounty.title} — ${budgetStr} | Stellar Creator Portfolio`,
+      title: `${bounty.title} — ${budgetStr} | Tamgora`,
       description: bounty.description.substring(0, 200),
 
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${bounty.title} — ${budgetStr} | Stellar Creator Portfolio`,
+      title: `${bounty.title} — ${budgetStr} | Tamgora`,
       description: bounty.description.substring(0, 200),
     },
   }

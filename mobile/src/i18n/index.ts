@@ -1,5 +1,5 @@
 /**
- * Stellar Mobile — i18n engine
+ * Tamgora Mobile — i18n engine
  *
  * Supports: en, es, fr, de, ar (RTL)
  * - Locale detection via expo-localization

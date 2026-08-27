@@ -52,7 +52,14 @@ model User {
   password            String?
   image               String?
   role                Role      @default(USER)
-  onboardingComplete  Boolean   @default(false)
+  /// Current step (1-3) in the onboarding wizard; used to resume where a
+  /// user left off. Set alongside onboardingData by app/api/onboarding.
+  onboardingStep      Int       @default(1)
+  /// Partial per-step form data collected before final submit.
+  onboardingData      Json?
+  /// Null until the wizard's final step completes. Presence (not a
+  /// separate boolean) is what middleware/NextAuth's jwt callback gate on.
+  onboardingCompletedAt DateTime?
   /// Stellar public key (G...), set once a wallet has been linked via SEP-10.
   /// Required to attest KYC on-chain (Issue #782).
   walletAddress       String?   @unique
@@ -162,6 +169,38 @@ model TierHistory {
 
   @@index([creatorProfileId, createdAt])
   @@index([newTier])
+}
+
+/// A creator's recurring weekly availability window (e.g. "Mon 9am-5pm UTC").
+model Availability {
+  id               String         @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  /// 0 = Sunday .. 6 = Saturday
+  dayOfWeek        Int
+  startTime        String
+  endTime          String
+  timezone         String         @default("UTC")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([creatorProfileId])
+}
+
+/// A skill endorsement one user gives to a creator's profile.
+model Endorsement {
+  id               String         @id @default(cuid())
+  creatorProfileId String
+  creatorProfile   CreatorProfile @relation(fields: [creatorProfileId], references: [id], onDelete: Cascade)
+  giverId          String
+  giver            User           @relation(name: "endorsements_given", fields: [giverId], references: [id], onDelete: Cascade)
+  skill            String
+  message          String?
+  createdAt        DateTime       @default(now())
+
+  @@unique([creatorProfileId, giverId, skill])
+  @@index([creatorProfileId])
+  @@index([giverId])
 }
 
 model ClientProfile {

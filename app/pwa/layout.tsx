@@ -1,15 +1,16 @@
 import type { Metadata, Viewport } from 'next';
 import { ReactNode } from 'react';
-// Commenting out missing PWA components to pass baseline checks
-// import PWAHead from '@/components/pwa/pwa-head';
-// import PWAProvider from '@/components/pwa/pwa-provider';
 import './globals.css';
+
+// NOTE: components/pwa/ (PWAHead, PWAProvider) does not exist in this repo.
+// The PWA meta tags and manifest link below are written out directly instead;
+// wire the components in here if they are ever added.
 
 export const metadata: Metadata = {
   // Basic metadata
   title: {
-    default: 'Stellar Creator Portfolio',
-    template: '%s | Stellar Creator Portfolio',
+    default: 'Tamgora',
+    template: '%s | Tamgora',
   },
   description:
     'Professional creator portfolio with native app-like experience. Showcase your work, engage with your audience, and build your brand.',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Stellar Portfolio',
+    title: 'Tamgora',
   },
 
   // Open Graph for social sharing
@@ -37,8 +38,8 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://your-portfolio.com',
-    siteName: 'Stellar Creator Portfolio',
-    title: 'Stellar Creator Portfolio',
+    siteName: 'Tamgora',
+    title: 'Tamgora',
     description:
       'Professional creator portfolio with native app-like experience',
     images: [
@@ -46,7 +47,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Stellar Creator Portfolio',
+        alt: 'Tamgora',
       },
     ],
   },
@@ -54,7 +55,7 @@ export const metadata: Metadata = {
   // Twitter Card
   twitter: {
     card: 'summary_large_image',
-    title: 'Stellar Creator Portfolio',
+    title: 'Tamgora',
     description:
       'Professional creator portfolio with native app-like experience',
     images: ['/twitter-image.png'],
@@ -92,10 +93,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* PWA Meta Tags */}
-        <meta name="application-name" content="Stellar Portfolio" />
+        <meta name="application-name" content="Tamgora" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Stellar Portfolio" />
+        <meta name="apple-mobile-web-app-title" content="Tamgora" />
         <meta name="theme-color" content="#000000" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: dark)" />
 
@@ -115,15 +116,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
 
-        {/* PWA Head Component - Commented out due to missing file */}
-        {/* <PWAHead /> */}
       </head>
-      <body>
-        {/* PWAProvider - Commented out due to missing file */}
-        {/* <PWAProvider> */}
-          {children}
-        {/* </PWAProvider> */}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

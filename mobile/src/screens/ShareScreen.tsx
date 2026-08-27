@@ -52,7 +52,7 @@ interface ShareScreenProps {
 const DEFAULT_PAYLOAD: SharePayload = {
   type: 'profile',
   title: 'Alice Chen — UX Designer',
-  message: 'Check out Alice Chen on Stellar — the creator marketplace!',
+  message: 'Check out Alice Chen on Tamgora — the creator marketplace!',
   url: 'https://stellar.app/creators/alice-chen',
 };
 

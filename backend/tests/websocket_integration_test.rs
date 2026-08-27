@@ -99,7 +99,7 @@ async fn test_websocket_connection_and_echo() {
     let test_message = "Hello, WebSocket!";
     ws_stream
         .send(tokio_tungstenite::tungstenite::Message::Text(
-            test_message.to_string(),
+            test_message.to_string().into(),
         ))
         .await
         .expect("Failed to send message");
@@ -172,7 +172,7 @@ async fn test_websocket_multiple_messages() {
     for msg in &messages {
         ws_stream
             .send(tokio_tungstenite::tungstenite::Message::Text(
-                msg.to_string(),
+                msg.to_string().into(),
             ))
             .await
             .expect("Failed to send message");

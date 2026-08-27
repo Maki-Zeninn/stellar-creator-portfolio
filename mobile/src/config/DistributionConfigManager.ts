@@ -25,7 +25,10 @@ export class DistributionConfigManager {
   }
 
   /**
-   * Initialize singleton instance
+   * Initialize singleton instance.
+   * If called again with different platform/channel, reconfigures the existing
+   * instance and warns. This prevents silently operating on stale config when
+   * initialize() is called with changed arguments (Issue #1096).
    */
   public static initialize(platform: Platform, channel?: ReleaseChannel): DistributionConfigManager {
     const releaseChannel = channel || getCurrentReleaseChannel();
@@ -34,6 +37,21 @@ export class DistributionConfigManager {
         platform,
         releaseChannel,
       );
+      return DistributionConfigManager.instance;
+    }
+
+    // Already initialized — check if the args changed
+    const existing = DistributionConfigManager.instance;
+    if (existing.platform !== platform || existing.channel !== releaseChannel) {
+      console.warn(
+        'DistributionConfigManager.initialize() called with different arguments ' +
+        `(platform: ${existing.platform} -> ${platform}, ` +
+        `channel: ${existing.channel} -> ${releaseChannel}). ` +
+        'Reconfiguring the existing instance.',
+      );
+      existing.platform = platform;
+      existing.channel = releaseChannel;
+      existing.initializeConfig();
     }
     return DistributionConfigManager.instance;
   }

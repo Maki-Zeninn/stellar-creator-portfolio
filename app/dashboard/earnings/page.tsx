@@ -3,7 +3,7 @@ import { Footer } from '@/components/footer'
 import { EarningsDashboard } from '@/components/earnings-dashboard'
 
 export const metadata = {
-  title: 'Earnings | Stellar Creator Portfolio',
+  title: 'Earnings | Tamgora',
   description: 'Track your freelance earnings and export tax documents.',
 }
 

@@ -1,4 +1,4 @@
-# Contributing to Stellar Creator Portfolio
+# Contributing to Tamgora
 
 Thank you for your interest in contributing! This document covers setup,
 workflow, code style, testing, and the PR/merge process for this repo.
@@ -184,4 +184,4 @@ chore/* (maintenance)
 By contributing, you agree that your contributions will be licensed under the
 MIT License.
 
-Thank you for helping improve Stellar Creator Portfolio!
+Thank you for helping improve Tamgora!

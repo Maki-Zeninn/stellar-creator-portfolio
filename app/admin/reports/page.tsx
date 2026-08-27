@@ -11,24 +11,13 @@ import {
   mockReports, mockAuditLogs, addAuditLog,
   type ContentReport, type ReportStatus, type AuditLog,
 } from '@/lib/services/admin-service';
-
-// ── Icon map ──────────────────────────────────────────────────────────────────
+import { StatusBadge } from '@/components/ui/status-badge';
 
 const TYPE_ICON: Record<ContentReport['type'], React.ElementType> = {
   bounty: Briefcase,
   profile: User,
   message: MessageSquare,
   portfolio: Image,
-};
-
-// ── Status badge colours ──────────────────────────────────────────────────────
-
-const STATUS_COLORS: Record<ReportStatus, string> = {
-  open: 'bg-red-500/10 text-red-600 border-red-500/20',
-  resolved: 'bg-green-500/10 text-green-600 border-green-500/20',
-  dismissed: 'bg-muted text-muted-foreground border-border',
-  escalated: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  removed: 'bg-purple-500/10 text-purple-700 border-purple-500/20',
 };
 
 // ── Filter tabs ───────────────────────────────────────────────────────────────
@@ -325,11 +314,7 @@ export default function AdminReportsPage() {
                       {/* Title row */}
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-medium text-sm">{report.targetTitle}</span>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[report.status]}`}
-                        >
-                          {report.status}
-                        </span>
+                        <StatusBadge status={report.status} />
                         <span className="text-xs text-muted-foreground capitalize">
                           {report.type}
                         </span>

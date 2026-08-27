@@ -1,6 +1,6 @@
-# Stellar Mobile Application
+# Tamgora Mobile Application
 
-React Native mobile application for the Stellar Creator Portfolio platform, built with Expo.
+React Native mobile application for the Tamgora platform, built with Expo.
 
 ## Issues Implemented
 

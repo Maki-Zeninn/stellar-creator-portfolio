@@ -6,13 +6,13 @@ export const metadata: Metadata = {
   description:
     'Explore our community of world-class creators. Filter by discipline to find the perfect talent for your project in UI/UX design, writing, marketing, and more.',
   openGraph: {
-    title: 'Creator Directory — Stellar Creator Portfolio',
+    title: 'Creator Directory — Tamgora',
     description:
       'Explore our community of world-class creators. Filter by discipline to find the perfect talent for your project.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Creator Directory — Stellar Creator Portfolio',
+    title: 'Creator Directory — Tamgora',
     description:
       'Explore our community of world-class creators. Filter by discipline to find the perfect talent for your project.',
   },

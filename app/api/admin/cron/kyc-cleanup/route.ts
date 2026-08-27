@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -12,10 +13,26 @@ import { prisma } from '@/lib/prisma';
  * Authorization: Requires valid cron secret in X-Cron-Secret header.
  */
 export async function POST(req: NextRequest) {
+  // Constant-time comparison (mirrors the fix in the corridor-aggregation
+  // cron route): a plain !== comparison leaks timing information about how
+  // many leading characters of a guess match, letting the secret be
+  // recovered incrementally by a network-positioned attacker.
   const cronSecret = req.headers.get('x-cron-secret');
   const validSecret = process.env.CRON_SECRET;
 
-  if (!validSecret || cronSecret !== validSecret) {
+  const authorized = (() => {
+    if (!validSecret || !cronSecret) return false;
+    try {
+      const a = Buffer.from(cronSecret);
+      const b = Buffer.from(validSecret);
+      if (a.length !== b.length) return false;
+      return crypto.timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
+  })();
+
+  if (!authorized) {
     return NextResponse.json(
       { error: 'Unauthorized: Invalid or missing cron secret' },
       { status: 401 },

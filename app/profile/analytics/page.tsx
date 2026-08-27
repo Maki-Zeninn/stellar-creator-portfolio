@@ -31,10 +31,10 @@ export default function ProfileAnalyticsPage() {
               </p>
             </div>
             <SocialShare
-              title="Check out my earnings on Stellar Creators!"
+              title="Check out my earnings on Tamgora Creators!"
               description="Creator analytics and milestones"
               url="/profile/analytics"
-              hashtags={['StellarCreators', 'Web3Earnings', 'Milestone']}
+              hashtags={['TamgoraCreators', 'Web3Earnings', 'Milestone']}
             />
           </div>
           <AnalyticsDashboardReal />

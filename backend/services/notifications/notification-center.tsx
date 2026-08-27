@@ -16,6 +16,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { formatDate } from '@/lib/utils';
 
 type NotificationType = 'message' | 'update' | 'reminder' | 'alert' | 'info' | 'bounty' | 'application';
 type NotificationStatus = 'unread' | 'read' | 'archived';
@@ -55,7 +56,7 @@ function formatRelativeTime(date: Date): string {
   if (diffHr < 24) return `${diffHr}h ago`;
   const diffDay = Math.floor(diffHr / 24);
   if (diffDay < 7) return `${diffDay}d ago`;
-  return date.toLocaleDateString();
+  return formatDate(date, 'default');
 }
 
 async function fetchNotifications(): Promise<Notification[]> {

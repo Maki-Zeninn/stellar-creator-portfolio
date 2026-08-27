@@ -8,6 +8,7 @@ import {
   formatRating,
   formatExperience,
   truncate,
+  parseBountyStatus,
 } from './utils';
 
 describe('formatCurrency', () => {
@@ -25,12 +26,34 @@ describe('formatCurrency', () => {
 });
 
 describe('formatDate', () => {
-  it('formats an ISO string', () => {
+  it('formats an ISO string with full date (default)', () => {
     expect(formatDate('2025-08-12')).toBe('Aug 12, 2025');
   });
 
-  it('formats a Date object', () => {
+  it('formats a Date object with full date (default)', () => {
     expect(formatDate(new Date('2024-01-01'))).toBe('Jan 1, 2024');
+  });
+
+  it('formats with month and day only', () => {
+    expect(formatDate('2025-08-12', 'month-day')).toBe('Aug 12');
+  });
+
+  it('formats with month and year only', () => {
+    expect(formatDate('2025-08-12', 'month-year')).toBe('Aug 2025');
+  });
+
+  it('formats with date and time', () => {
+    const result = formatDate(new Date('2025-08-12T14:30:00'), 'date-time');
+    expect(result).toMatch(/Aug 12, 2025.*02:30 PM|14:30/);
+  });
+
+  it('formats with browser default locale', () => {
+    const result = formatDate('2025-08-12', 'default');
+    expect(result).toMatch(/\d/);
+  });
+
+  it('explicit full type matches default behavior', () => {
+    expect(formatDate('2025-08-12', 'full')).toBe('Aug 12, 2025');
   });
 });
 
@@ -153,5 +176,85 @@ describe('truncate', () => {
 
   it('does not truncate at exact length', () => {
     expect(truncate('hello', 5)).toBe('hello');
+  });
+
+  it('handles an empty string', () => {
+    expect(truncate('', 5)).toBe('');
+  });
+
+  it('handles maxLength of zero', () => {
+    expect(truncate('hello', 0)).toBe('…');
+  });
+});
+
+describe('parseBountyStatus', () => {
+  describe('valid status strings', () => {
+    it('parses "open" status', () => {
+      expect(parseBountyStatus('open')).toBe('Open');
+    });
+
+    it('parses "in_progress" status', () => {
+      expect(parseBountyStatus('in_progress')).toBe('In Progress');
+    });
+
+    it('parses "submitted" status', () => {
+      expect(parseBountyStatus('submitted')).toBe('Submitted');
+    });
+
+    it('parses "completed" status', () => {
+      expect(parseBountyStatus('completed')).toBe('Completed');
+    });
+
+    it('parses "cancelled" status', () => {
+      expect(parseBountyStatus('cancelled')).toBe('Cancelled');
+    });
+
+    it('parses "expired" status', () => {
+      expect(parseBountyStatus('expired')).toBe('Expired');
+    });
+  });
+
+  describe('case insensitivity', () => {
+    it('handles uppercase status', () => {
+      expect(parseBountyStatus('OPEN')).toBe('Open');
+    });
+
+    it('handles mixed case status', () => {
+      expect(parseBountyStatus('In_Progress')).toBe('In Progress');
+    });
+
+    it('handles fully uppercase "COMPLETED"', () => {
+      expect(parseBountyStatus('COMPLETED')).toBe('Completed');
+    });
+
+    it('handles mixed case "Expired"', () => {
+      expect(parseBountyStatus('Expired')).toBe('Expired');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns "Unknown" for empty string', () => {
+      expect(parseBountyStatus('')).toBe('Unknown');
+    });
+
+    it('returns "Unknown" for invalid status', () => {
+      expect(parseBountyStatus('invalid_status')).toBe('Unknown');
+    });
+
+    it('returns "Unknown" for random string', () => {
+      expect(parseBountyStatus('foobar')).toBe('Unknown');
+    });
+
+    it('returns "Unknown" for whitespace-only string', () => {
+      expect(parseBountyStatus('   ')).toBe('Unknown');
+    });
+
+    it('handles null gracefully', () => {
+      expect(parseBountyStatus(null as any)).toBe('Unknown');
+    });
+
+    it('handles undefined gracefully', () => {
+      expect(parseBountyStatus(undefined as any)).toBe('Unknown');
+    });
   });
 });

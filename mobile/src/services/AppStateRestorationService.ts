@@ -43,6 +43,8 @@ export const NON_RESTORABLE_SCREENS = [
   'RegisterScreen',
   'CameraScreen',
   'OnboardingScreen',
+  'MultiSigApprovalScreen',
+  'P2PTransferScreen',
 ] as const;
 
 export interface NavigationState {

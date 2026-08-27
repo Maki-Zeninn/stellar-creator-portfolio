@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { ReviewFilters, type ReviewFilterOptions } from '@/components/review-filters';
 import { ReviewList } from '@/components/review-list';
 import { ErrorAlert } from '@/components/error-alert';
 import { fetchAllReviews } from '@/lib/api-client';
-import { TrendingUp, Users, Star, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, Users, Star, Award } from 'lucide-react';
 import type { PublicReview, ReputationAggregation } from '@/lib/api-models';
 
 interface ReviewAnalyticsData {
@@ -291,32 +291,17 @@ export function ReviewAnalytics() {
           
           {/* Pagination */}
           {reviews.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-6 border-t">
-              <div className="text-sm text-muted-foreground">
-                Page {reviews.page} of {reviews.totalPages} 
-                ({reviews.totalCount} total reviews)
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(reviews.page - 1)}
-                  disabled={!reviews.hasPrev || isLoading}
-                >
-                  <ChevronLeft size={16} />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(reviews.page + 1)}
-                  disabled={!reviews.hasNext || isLoading}
-                >
-                  Next
-                  <ChevronRight size={16} />
-                </Button>
-              </div>
-            </div>
+            <PaginationControls
+              page={reviews.page}
+              totalPages={reviews.totalPages}
+              onPageChange={handlePageChange}
+              hasPrev={reviews.hasPrev}
+              hasNext={reviews.hasNext}
+              disabled={isLoading}
+              showIcons
+              label={`Page ${reviews.page} of ${reviews.totalPages} (${reviews.totalCount} total reviews)`}
+              className="mt-6 pt-6 border-t"
+            />
           )}
         </Card>
       </div>

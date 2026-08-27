@@ -18,7 +18,7 @@ on:
 
 jobs:
   load-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Pinned to ensure reproducible builds (see #1270)
     steps:
       - uses: actions/checkout@v6
 

@@ -71,7 +71,7 @@ export default function Home() {
         <section className="py-12 sm:py-16 border-b border-border bg-muted/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-              <AnimatedCounter value={creators.length} label="Stellar Creators" suffix="+" />
+              <AnimatedCounter value={creators.length} label="Tamgora Creators" suffix="+" />
               <AnimatedCounter value={creators.reduce((sum, c) => sum + c.projects.length, 0)} label="Incredible Projects" suffix="+" />
               <AnimatedCounter value={15} label="Non-Tech Disciplines" suffix="+" />
             </div>
@@ -123,7 +123,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12 sm:mb-16">
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-3">
-                Why Choose Stellar?
+                Why Choose Tamgora?
               </h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
                 The platform built for non-technical talent in tech
@@ -180,7 +180,7 @@ export default function Home() {
               Ready to Get Started?
             </h2>
             <p className="text-base sm:text-lg text-muted-foreground mb-8 sm:mb-10 max-w-2xl mx-auto">
-              Join thousands of creators and clients finding perfect matches on Stellar.
+              Join thousands of creators and clients finding perfect matches on Tamgora.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center sm:items-stretch">
               <Button size="lg" className="w-full sm:w-auto" onClick={() => router.push('/creators')}>

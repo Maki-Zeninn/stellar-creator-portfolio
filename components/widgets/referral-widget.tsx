@@ -18,7 +18,7 @@ export function ReferralWidget({ referralUrl, code }: ReferralWidgetProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const shareText = encodeURIComponent(`Join me on Stellar — the platform for world-class non-technical tech talent. Use my referral link:`);
+  const shareText = encodeURIComponent(`Join me on Tamgora — the platform for world-class non-technical tech talent. Use my referral link:`);
 
   const socials = [
     {

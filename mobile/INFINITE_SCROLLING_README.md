@@ -1,6 +1,6 @@
 # Mobile Infinite Scrolling Implementation
 
-This document describes the specialized infinite scrolling structures implemented for the Stellar mobile application with memory optimization.
+This document describes the specialized infinite scrolling structures implemented for the Tamgora mobile application with memory optimization.
 
 ## Overview
 
