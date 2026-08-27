@@ -130,6 +130,35 @@ export function truncate(str: string, maxLength: number): string {
 }
 
 /**
+ * Convert a string to a URL-safe slug.
+ * Lowercases, replaces non-alphanumeric runs with hyphens, and trims leading/trailing hyphens.
+ * @example slugify("Hello World!") // "hello-world"
+ * @example slugify("My File (v1).png") // "my-file-v1-png"
+ */
+export function slugify(str: string): string {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Return up to two uppercase initials from a display name.
+ * Splits on whitespace and takes the first character of each word.
+ * @example getInitials("Jane Doe") // "JD"
+ * @example getInitials("Alice") // "A"
+ * @example getInitials("") // ""
+ */
+export function getInitials(name: string): string {
+  if (!name || typeof name !== 'string') return '';
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('');
  * Format a byte count as a human-readable file size (e.g. "4.2 MB").
  * Assumes `bytes` is a non-negative integer; base-1024 units (KB/MB/GB),
  * not base-1000, matching how OS file browsers typically display size.
