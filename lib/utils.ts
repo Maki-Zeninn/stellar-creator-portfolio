@@ -173,3 +173,16 @@ export function getAvatarInitials(name: string): string {
     .join('')
     .toUpperCase();
 }
+
+/**
+ * Shorten a Stellar/blockchain address to a readable summary.
+ * Returns the first `prefixLen` characters, an ellipsis, and the last `suffixLen` characters.
+ * If the address is already short enough to fit in prefix+suffix it is returned as-is.
+ * @example shortenAddress('GABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890') // "GABCDE...7890"
+ * @example shortenAddress('GSHORT') // "GSHORT"
+ */
+export function shortenAddress(address: string, prefixLen = 6, suffixLen = 4): string {
+  if (!address) return '';
+  if (address.length <= prefixLen + suffixLen) return address;
+  return `${address.slice(0, prefixLen)}...${address.slice(-suffixLen)}`;
+}

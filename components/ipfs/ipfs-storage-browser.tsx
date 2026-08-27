@@ -193,27 +193,30 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                   size="sm"
                   variant="ghost"
                   onClick={() => onView(file)}
+                  aria-label="View file"
                   title="View file"
                 >
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 </Button>
                 
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => navigator.clipboard.writeText(file.cid)}
+                  aria-label="Copy CID"
                   title="Copy CID"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4" aria-hidden="true" />
                 </Button>
 
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => window.open(`https://ipfs.io/ipfs/${file.cid}`, '_blank')}
+                  aria-label="Open in IPFS gateway"
                   title="Open in IPFS gateway"
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 </Button>
                 
                 {file.pinned ? (
@@ -221,18 +224,20 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                     size="sm"
                     variant="ghost"
                     onClick={() => onUnpin(file.cid)}
+                    aria-label="Unpin file"
                     title="Unpin file"
                   >
-                    <Pin className="h-4 w-4 text-blue-500" />
+                    <Pin className="h-4 w-4 text-blue-500" aria-hidden="true" />
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => onPin(file.cid)}
+                    aria-label="Pin file"
                     title="Pin file"
                   >
-                    <Pin className="h-4 w-4" />
+                    <Pin className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 )}
                 
@@ -241,9 +246,10 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                   variant="ghost"
                   onClick={() => onDelete(file.cid)}
                   className="text-destructive"
+                  aria-label="Delete file"
                   title="Delete file"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>

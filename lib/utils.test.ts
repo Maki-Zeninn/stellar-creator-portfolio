@@ -9,6 +9,8 @@ import {
   formatExperience,
   truncate,
   parseBountyStatus,
+  formatFileSize,
+  shortenAddress,
 } from './utils';
 
 describe('formatCurrency', () => {
@@ -256,5 +258,71 @@ describe('parseBountyStatus', () => {
     it('handles undefined gracefully', () => {
       expect(parseBountyStatus(undefined as any)).toBe('Unknown');
     });
+  });
+});
+
+describe('formatFileSize', () => {
+  it('formats zero bytes', () => {
+    expect(formatFileSize(0)).toBe('0 B');
+  });
+
+  it('formats bytes (< 1 KB)', () => {
+    expect(formatFileSize(512)).toBe('512 B');
+  });
+
+  it('formats kilobytes', () => {
+    expect(formatFileSize(1024)).toBe('1.0 KB');
+  });
+
+  it('formats megabytes', () => {
+    expect(formatFileSize(4 * 1024 * 1024)).toBe('4.0 MB');
+  });
+
+  it('formats gigabytes', () => {
+    expect(formatFileSize(2.5 * 1024 * 1024 * 1024)).toBe('2.5 GB');
+  });
+
+  it('caps at terabytes for very large inputs', () => {
+    const oneTB = 1024 ** 4;
+    expect(formatFileSize(oneTB)).toBe('1.0 TB');
+  });
+
+  it('handles a fractional kilobyte value', () => {
+    expect(formatFileSize(1536)).toBe('1.5 KB');
+  });
+
+  it('handles the exact 1-byte boundary', () => {
+    expect(formatFileSize(1)).toBe('1 B');
+  });
+});
+
+describe('shortenAddress', () => {
+  it('shortens a long Stellar address with default lengths', () => {
+    expect(shortenAddress('GABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890')).toBe('GABCDE...7890');
+  });
+
+  it('returns the address unchanged when it fits within prefix+suffix', () => {
+    expect(shortenAddress('GSHORT')).toBe('GSHORT');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(shortenAddress('')).toBe('');
+  });
+
+  it('returns empty string for null-ish input', () => {
+    expect(shortenAddress(null as any)).toBe('');
+  });
+
+  it('respects custom prefix and suffix lengths', () => {
+    expect(shortenAddress('GABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890', 4, 6)).toBe('GABC...567890');
+  });
+
+  it('handles an address that is exactly prefix+suffix length', () => {
+    // 6 prefix + 4 suffix = 10 chars; no truncation expected
+    expect(shortenAddress('GABCDE7890')).toBe('GABCDE7890');
+  });
+
+  it('handles an address that is one character longer than prefix+suffix', () => {
+    expect(shortenAddress('GABCDE78901')).toBe('GABCDE...8901');
   });
 });
