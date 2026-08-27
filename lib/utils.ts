@@ -89,3 +89,23 @@ export function formatExperience(years?: number): string {
 export function truncate(str: string, maxLength: number): string {
   return str.length <= maxLength ? str : `${str.slice(0, maxLength)}…`;
 }
+
+/**
+ * Return a compact human-readable relative time string with sub-day granularity.
+ * @example formatRelativeTime(new Date(Date.now() - 30000)) // "just now"
+ * @example formatRelativeTime(new Date(Date.now() - 5 * 60000)) // "5m ago"
+ * @example formatRelativeTime(new Date(Date.now() - 3 * 3600000)) // "3h ago"
+ * @example formatRelativeTime(new Date(Date.now() - 2 * 86400000)) // "2d ago"
+ */
+export function formatRelativeTime(date: Date | string): string {
+  const diffMs = Date.now() - new Date(date).getTime();
+  const diffSec = Math.floor(diffMs / 1_000);
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return new Date(date).toLocaleDateString();
+}
