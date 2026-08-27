@@ -9,14 +9,7 @@ import {
   mockBounties, mockAuditLogs, addAuditLog,
   type AdminBounty, type BountyStatus, type AuditLog,
 } from '@/lib/services/admin-service';
-
-const STATUS_COLORS: Record<BountyStatus, string> = {
-  open: 'bg-green-500/10 text-green-600 border-green-500/20',
-  'in-progress': 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-  completed: 'bg-muted text-muted-foreground border-border',
-  cancelled: 'bg-muted text-muted-foreground border-border',
-  flagged: 'bg-red-500/10 text-red-600 border-red-500/20',
-};
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export default function AdminBountiesPage() {
   const [bounties, setBounties] = useState<AdminBounty[]>(mockBounties);
@@ -161,9 +154,7 @@ export default function AdminBountiesPage() {
                       <td className="px-4 py-3 text-muted-foreground">{bounty.postedBy}</td>
                       <td className="px-4 py-3 font-medium">${bounty.budget.toLocaleString()}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[bounty.status]}`}>
-                          {bounty.status}
-                        </span>
+                        <StatusBadge status={bounty.status} />
                       </td>
                       <td className="px-4 py-3">{bounty.applicants}</td>
                       <td className="px-4 py-3">
@@ -193,7 +184,37 @@ export default function AdminBountiesPage() {
                   </>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground text-sm">No bounties found</td></tr>
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8">
+                      <div className="text-center space-y-3">
+                        <p className="text-muted-foreground text-sm">No bounties match your filters.</p>
+                        <div className="flex items-center justify-center gap-2">
+                          {(search || statusFilter !== 'All') && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSearch('');
+                                  setStatusFilter('All');
+                                }}
+                              >
+                                Clear Filters
+                              </Button>
+                              <span className="text-xs text-muted-foreground">or</span>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.location.href = '/'}
+                          >
+                            View on Marketplace
+                          </Button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

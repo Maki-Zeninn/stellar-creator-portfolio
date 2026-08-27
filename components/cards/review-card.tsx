@@ -89,8 +89,9 @@ export function ReviewCard({ review, currentUserId, userVote, onVote }: ReviewCa
           onClick={() => handleVote('helpful')}
           disabled={!currentUserId}
           aria-pressed={optimisticVote === 'helpful'}
+          aria-label="Mark review as helpful"
         >
-          <ThumbsUp size={13} />
+          <ThumbsUp size={13} aria-hidden="true" />
           {helpfulCount > 0 && <span>{helpfulCount}</span>}
         </Button>
         <Button
@@ -103,8 +104,9 @@ export function ReviewCard({ review, currentUserId, userVote, onVote }: ReviewCa
           onClick={() => handleVote('not_helpful')}
           disabled={!currentUserId}
           aria-pressed={optimisticVote === 'not_helpful'}
+          aria-label="Mark review as not helpful"
         >
-          <ThumbsDown size={13} />
+          <ThumbsDown size={13} aria-hidden="true" />
           {notHelpfulCount > 0 && <span>{notHelpfulCount}</span>}
         </Button>
         {!currentUserId && (

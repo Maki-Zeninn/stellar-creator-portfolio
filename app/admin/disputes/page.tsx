@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Gavel, RefreshCw } from 'lucide-react';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface Dispute {
   id: string;
@@ -21,12 +21,6 @@ interface Dispute {
 }
 
 type Resolution = 'release_to_freelancer' | 'refund_to_creator' | 'split_50_50';
-
-const STATUS_COLORS: Record<string, string> = {
-  open: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  resolved: 'bg-green-500/10 text-green-600 border-green-500/20',
-  closed: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-};
 
 const RESOLUTION_LABELS: Record<Resolution, string> = {
   release_to_freelancer: 'Release to Freelancer',
@@ -182,12 +176,7 @@ export default function AdminDisputesPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] ${STATUS_COLORS[d.status] ?? ''}`}
-                    >
-                      {d.status}
-                    </Badge>
+                    <StatusBadge status={d.status} className="text-[10px]" />
                     <span className="text-xs text-muted-foreground">{ageLabel(d.createdAt)}</span>
                   </div>
                   <div className="font-mono text-xs text-muted-foreground truncate">{d.id}</div>
@@ -226,12 +215,7 @@ export default function AdminDisputesPage() {
                   <div>
                     <dt className="text-xs text-muted-foreground mb-0.5">Status</dt>
                     <dd>
-                      <Badge
-                        variant="outline"
-                        className={STATUS_COLORS[selected.status] ?? ''}
-                      >
-                        {selected.status}
-                      </Badge>
+                      <StatusBadge status={selected.status} />
                     </dd>
                   </div>
                   <div>

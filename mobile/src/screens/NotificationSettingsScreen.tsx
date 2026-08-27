@@ -11,7 +11,6 @@ import { useTheme } from '../theme/ThemeProvider';
 import { FontSize, FontWeight, Radius, Spacing } from '../theme/tokens';
 import { useUIStore } from '../store/uiStore';
 
-
 interface NotificationSettingsScreenProps {
   onBack?: () => void;
 }
