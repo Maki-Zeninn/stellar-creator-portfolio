@@ -123,9 +123,22 @@ pub struct InsuranceContract;
 impl InsuranceContract {
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-    /// Initialize the contract, storing the governance multisig as admin.
+    /// Initialize the insurance pool contract.
     ///
-    /// Must be called once before any other function.
+    /// Stores the governance multisig address as the contract admin and
+    /// sets the claim counter to zero.  Must be called exactly once before
+    /// any other public function.
+    ///
+    /// # Arguments
+    ///
+    /// * `admin` – Address of the governance multisig that will control
+    ///   claim approvals, rejections, and payouts.
+    ///
+    /// # Panics
+    ///
+    /// * Panics with `InsuranceError::AlreadyInitialized` if the contract
+    ///   has already been initialized.
+    /// * Panics if `admin` does not authorize the transaction.
     pub fn initialize(env: Env, admin: Address) {
         admin.require_auth();
         if env.storage().persistent().has(&DataKey::Admin) {
@@ -139,13 +152,27 @@ impl InsuranceContract {
 
     // ── Pool management ───────────────────────────────────────────────────────
 
-    /// Deposit `amount` tokens into the insurance pool.
+    /// Deposit tokens into the insurance pool.
     ///
-    /// Called by the escrow contract on every fee collection.
-    /// The caller is responsible for computing `amount = fee * INSURANCE_BPS / 10_000`
-    /// and must hold the corresponding token balance.
+    /// Called by the escrow contract on every fee collection.  The caller
+    /// is responsible for computing the levy amount before calling this
+    /// function (i.e. `amount = fee * INSURANCE_BPS / 10_000`).
     ///
-    /// `from` is the address transferring the tokens (typically the escrow contract).
+    /// # Arguments
+    ///
+    /// * `from`   – Address transferring the tokens (typically the escrow
+    ///              contract address).  Must authorize the transaction.
+    /// * `amount` – Positive number of token units to deposit.
+    /// * `token`  – Soroban address of the SPL token contract.
+    ///
+    /// # Errors
+    ///
+    /// * `InsuranceError::InvalidAmount` – if `amount <= 0`.
+    /// * `InsuranceError::NotInitialized` – if `initialize` has not been called.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `from` does not authorize the transaction.
     pub fn contribute_to_pool(env: Env, from: Address, amount: i128, token: Address) {
         from.require_auth();
         Self::require_initialized(&env);
@@ -168,7 +195,16 @@ impl InsuranceContract {
         );
     }
 
-    /// Return the current pool balance for `token`.
+    /// Return the current pool balance for a given token.
+    ///
+    /// # Arguments
+    ///
+    /// * `token` – Soroban address of the token to query.
+    ///
+    /// # Returns
+    ///
+    /// The number of token units currently held in the pool.  Returns `0`
+    /// if no deposits have been made for this token yet.
     pub fn get_pool_balance(env: Env, token: Address) -> i128 {
         env.storage()
             .persistent()
@@ -178,12 +214,33 @@ impl InsuranceContract {
 
     // ── Claims ────────────────────────────────────────────────────────────────
 
-    /// Submit a new claim.
+    /// Submit a new insurance claim.
     ///
-    /// The claim enters `Pending` state.  Governance has `CLAIM_VOTING_PERIOD_SECS`
-    /// to review before `approve_claim` or `reject_claim` can be called.
+    /// Creates a claim in `Pending` status.  Governance has
+    /// `CLAIM_VOTING_PERIOD_SECS` (3 days) to review and call
+    /// `approve_claim` or `reject_claim` before the voting deadline.
     ///
-    /// Returns the new claim ID.
+    /// # Arguments
+    ///
+    /// * `claimant` – Address of the user submitting the claim.  Must
+    ///                authorize the transaction.
+    /// * `amount`   – Number of token units requested as payout.
+    /// * `token`    – Soroban address of the token for the payout.
+    /// * `evidence` – Arbitrary string describing the claim (e.g. a
+    ///                transaction hash or IPFS CID).
+    ///
+    /// # Returns
+    ///
+    /// The newly assigned claim ID (monotonically increasing `u64`).
+    ///
+    /// # Errors
+    ///
+    /// * `InsuranceError::InvalidAmount` – if `amount <= 0`.
+    /// * `InsuranceError::NotInitialized` – if `initialize` has not been called.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `claimant` does not authorize the transaction.
     pub fn submit_claim(
         env: Env,
         claimant: Address,
@@ -227,8 +284,29 @@ impl InsuranceContract {
         id
     }
 
-    /// Approve a pending claim.  Only the admin (governance multisig) may call this,
-    /// and only after the `voting_deadline` has passed.
+    /// Approve a pending claim.
+    ///
+    /// Only the admin (governance multisig) may call this.  The claim's
+    /// voting deadline must have elapsed.
+    ///
+    /// # Arguments
+    ///
+    /// * `admin`    – Address of the governance multisig.  Must authorize
+    ///                the transaction and match the stored admin.
+    /// * `claim_id` – ID of the claim to approve.
+    ///
+    /// # Errors
+    ///
+    /// * `InsuranceError::Unauthorized`        – if `admin` is not the stored admin.
+    /// * `InsuranceError::ClaimNotFound`       – if no claim exists with `claim_id`.
+    /// * `InsuranceError::ClaimAlreadyApproved` – if the claim is not in `Pending`
+    ///   status (i.e. already approved, rejected, or executed).
+    /// * `InsuranceError::VotingPeriodNotEnded` – if the current ledger timestamp
+    ///   is before `claim.voting_deadline`.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `admin` does not authorize the transaction.
     pub fn approve_claim(env: Env, admin: Address, claim_id: u64) {
         admin.require_auth();
         Self::require_admin(&env, &admin);
@@ -250,7 +328,27 @@ impl InsuranceContract {
         );
     }
 
-    /// Reject a pending claim.  Only admin may call this.
+    /// Reject a pending claim.
+    ///
+    /// Only the admin (governance multisig) may call this.  The claim
+    /// must still be in `Pending` status.
+    ///
+    /// # Arguments
+    ///
+    /// * `admin`    – Address of the governance multisig.  Must authorize
+    ///                the transaction and match the stored admin.
+    /// * `claim_id` – ID of the claim to reject.
+    ///
+    /// # Errors
+    ///
+    /// * `InsuranceError::Unauthorized`         – if `admin` is not the stored admin.
+    /// * `InsuranceError::ClaimNotFound`        – if no claim exists with `claim_id`.
+    /// * `InsuranceError::ClaimAlreadyApproved` – if the claim is not in `Pending`
+    ///   status (i.e. already approved, rejected, or executed).
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `admin` does not authorize the transaction.
     pub fn reject_claim(env: Env, admin: Address, claim_id: u64) {
         admin.require_auth();
         Self::require_admin(&env, &admin);
@@ -271,8 +369,30 @@ impl InsuranceContract {
 
     /// Execute payout for an approved claim.
     ///
-    /// Transfers `claim.amount` (capped at pool balance) to `claim.claimant`
-    /// and marks the claim `Executed`.
+    /// Transfers `claim.amount` token units from the pool to the
+    /// claimant and marks the claim as `Executed`.  Only the admin
+    /// (governance multisig) may call this.
+    ///
+    /// # Arguments
+    ///
+    /// * `admin`    – Address of the governance multisig.  Must authorize
+    ///                the transaction and match the stored admin.
+    /// * `claim_id` – ID of the approved claim to pay out.
+    ///
+    /// # Errors
+    ///
+    /// * `InsuranceError::Unauthorized`           – if `admin` is not the stored admin.
+    /// * `InsuranceError::ClaimNotFound`          – if no claim exists with `claim_id`.
+    /// * `InsuranceError::ClaimNotApproved`       – if the claim status is not
+    ///   `Approved` (e.g. `Pending` or `Rejected`).
+    /// * `InsuranceError::ClaimAlreadyExecuted`   – if the claim has already been
+    ///   paid out.
+    /// * `InsuranceError::InsufficientPoolBalance` – if the pool does not hold
+    ///   enough tokens to cover `claim.amount`.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `admin` does not authorize the transaction.
     pub fn execute_payout(env: Env, admin: Address, claim_id: u64) {
         admin.require_auth();
         Self::require_admin(&env, &admin);
@@ -315,7 +435,21 @@ impl InsuranceContract {
         );
     }
 
-    /// Return a claim record by ID.
+    /// Retrieve a claim record by ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `claim_id` – Numeric ID assigned when the claim was submitted.
+    ///
+    /// # Returns
+    ///
+    /// The full `Claim` struct including status, amounts, timestamps,
+    /// and evidence.
+    ///
+    /// # Errors
+    ///
+    /// * `InsuranceError::ClaimNotFound`  – if no claim exists with `claim_id`.
+    /// * `InsuranceError::NotInitialized` – if `initialize` has not been called.
     pub fn get_claim(env: Env, claim_id: u64) -> Claim {
         Self::require_initialized(&env);
         Self::load_claim(&env, claim_id)
