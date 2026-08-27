@@ -89,3 +89,35 @@ export function formatExperience(years?: number): string {
 export function truncate(str: string, maxLength: number): string {
   return str.length <= maxLength ? str : `${str.slice(0, maxLength)}…`;
 }
+
+/**
+ * Convert a string to a URL-safe slug.
+ * Lowercases, replaces non-alphanumeric runs with hyphens, and trims leading/trailing hyphens.
+ * @example slugify("Hello World!") // "hello-world"
+ * @example slugify("My File (v1).png") // "my-file-v1-png"
+ */
+export function slugify(str: string): string {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Return up to two uppercase initials from a display name.
+ * Splits on whitespace and takes the first character of each word.
+ * @example getInitials("Jane Doe") // "JD"
+ * @example getInitials("Alice") // "A"
+ * @example getInitials("") // ""
+ */
+export function getInitials(name: string): string {
+  if (!name || typeof name !== 'string') return '';
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('');
+}

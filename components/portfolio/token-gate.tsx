@@ -39,26 +39,26 @@ export function TokenGate({
   children,
 }: TokenGateProps) {
   const { publicKey, isConnected, connect } = useStellarWallet();
-  const [state, setState] = useState<GateState>('idle');
+  const [gateState, setGateState] = useState<GateState>('idle');
   const [unlocking, setUnlocking] = useState(false);
 
-  const check = useCallback(async () => {
+  const checkAccess = useCallback(async () => {
     if (!publicKey) {
-      setState('idle');
+      setGateState('idle');
       return;
     }
-    setState('checking');
+    setGateState('checking');
     try {
       const owns = await hasTokenBalance(tokenContractId, publicKey);
-      setState(owns ? 'unlocked' : 'locked');
+      setGateState(owns ? 'unlocked' : 'locked');
     } catch {
-      setState('locked');
+      setGateState('locked');
     }
   }, [publicKey, tokenContractId]);
 
   useEffect(() => {
-    void check();
-  }, [check]);
+    void checkAccess();
+  }, [checkAccess]);
 
   const handleUnlock = useCallback(async () => {
     if (!isConnected) {
@@ -68,13 +68,13 @@ export function TokenGate({
     setUnlocking(true);
     try {
       await onUnlock?.();
-      await check();
+      await checkAccess();
     } finally {
       setUnlocking(false);
     }
-  }, [isConnected, connect, onUnlock, check]);
+  }, [isConnected, connect, onUnlock, checkAccess]);
 
-  if (state === 'unlocked') {
+  if (gateState === 'unlocked') {
     return <>{children}</>;
   }
 
@@ -88,8 +88,8 @@ export function TokenGate({
           <Lock size={22} />
         </div>
         <p className="text-sm font-medium text-foreground">Premium content</p>
-        <Button onClick={handleUnlock} disabled={state === 'checking' || unlocking}>
-          {state === 'checking'
+        <Button onClick={handleUnlock} disabled={gateState === 'checking' || unlocking}>
+          {gateState === 'checking'
             ? 'Checking access…'
             : unlocking
               ? 'Unlocking…'
