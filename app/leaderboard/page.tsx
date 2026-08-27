@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Suspense } from "react";
 import { LeaderboardClient, type CreatorLeaderboardItem } from "@/components/leaderboard-client";
 import { getServerSession } from "next-auth/next";
 
@@ -49,7 +50,9 @@ export default async function LeaderboardPage() {
 
   return (
     <main className="min-h-screen bg-[#0b0f19] text-slate-100 pb-16">
-      <LeaderboardClient creators={creators} currentUserId={currentUserId} />
+      <Suspense fallback={null}>
+        <LeaderboardClient creators={creators} currentUserId={currentUserId} />
+      </Suspense>
     </main>
   );
 }

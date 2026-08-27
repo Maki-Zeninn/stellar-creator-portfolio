@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -28,8 +29,35 @@ interface LeaderboardClientProps {
 }
 
 export function LeaderboardClient({ creators, currentUserId }: LeaderboardClientProps) {
-  const [activeTab, setActiveTab] = useState<'discipline' | 'earnings' | 'rising_stars'>('discipline');
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Persist sort and discipline selection in the URL so navigating away and
+  // back restores the last-used state (closes #1215).
+  const VALID_TABS = ['discipline', 'earnings', 'rising_stars'] as const;
+  const rawTab = searchParams.get('sort') ?? 'discipline';
+  const activeTab = (VALID_TABS as readonly string[]).includes(rawTab)
+    ? (rawTab as 'discipline' | 'earnings' | 'rising_stars')
+    : 'discipline';
+  const selectedDiscipline = searchParams.get('discipline') ?? 'all';
+
+  /** Push a new URL with updated query params, preserving any others. */
+  const updateParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === 'all' || value === 'discipline') {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+      const qs = params.toString();
+      router.push(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
 
   // Format earnings as range/obfuscated strings (e.g., "$10,XXX+ earned")
   const formatEarnings = (amount: number) => {
@@ -109,7 +137,7 @@ export function LeaderboardClient({ creators, currentUserId }: LeaderboardClient
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-        <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="w-full sm:w-auto">
+        <Tabs value={activeTab} onValueChange={(val) => updateParams({ sort: val, discipline: null })} className="w-full sm:w-auto">
           <TabsList className="bg-muted/50 border border-border/50">
             <TabsTrigger value="discipline" className="gap-1.5">
               <Compass className="h-4 w-4" /> Top by Discipline
@@ -128,7 +156,7 @@ export function LeaderboardClient({ creators, currentUserId }: LeaderboardClient
             {disciplines.map((d) => (
               <button
                 key={d}
-                onClick={() => setSelectedDiscipline(d)}
+                onClick={() => updateParams({ discipline: d })}
                 className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all whitespace-nowrap capitalize ${
                   selectedDiscipline === d
                     ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30'
