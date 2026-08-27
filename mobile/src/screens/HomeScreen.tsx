@@ -28,7 +28,7 @@ import { MetricCard } from "../components/dashboard/MetricCard";
 import { PortfolioCard } from "../components/home/PortfolioCard";
 import { ProjectBountyList } from "../components/home/ProjectBountyList";
 import { ActionButton } from "../components/buttons/ActionButton";
-import { FontSize, FontWeight, Radius, Shadow, Spacing } from "../theme/tokens";
+import { FontSize, FontWeight, Radius, Spacing } from "../theme/tokens";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { trigger } from "../haptics/HapticEngine";
 

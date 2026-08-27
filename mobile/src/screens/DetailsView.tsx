@@ -30,7 +30,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Avatar, StatusBadge } from '../components/profile';
+
 import { useTheme } from '../theme/ThemeProvider';
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from '../theme/tokens';
 
