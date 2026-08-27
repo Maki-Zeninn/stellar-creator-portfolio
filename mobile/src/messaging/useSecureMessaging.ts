@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { SignalSessionManager } from './signal-session';
 import type { DecryptedMessage, DeliveryReceipt, EncryptedMessage, KeyBundle } from '../types';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.stellar.dev';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.tamgora.app';
 
 interface UseSecureMessagingOptions {
   localUserId: string;

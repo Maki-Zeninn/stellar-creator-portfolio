@@ -24,6 +24,12 @@ jobs:
         run: pnpm run lint
       - name: Build
         run: pnpm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build-${{ github.sha }}
+          path: .next/
+          if-no-files-found: error
 
   migration-health:
     runs-on: ubuntu-latest
@@ -44,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.74.0
         with:
           components: clippy
       - name: Rust Cache
@@ -61,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install Rust & Soroban
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.74.0
       - name: Test Contracts
         run: cd backend && cargo test --all-features
 
@@ -94,8 +100,11 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install
-      - name: Build
-        run: pnpm run build
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: next-build-${{ github.sha }}
+          path: .next/
       - name: Run Lighthouse CI
         run: |
           pnpm exec lhci autorun
@@ -177,3 +186,27 @@ jobs:
             echo "Image exceeds 300MB limit"
             exit 1
           fi
+      - name: Verify container starts and responds
+        run: |
+          docker run -d \
+            --name smoke-test \
+            -p 3000:3000 \
+            -e NODE_ENV=production \
+            stellar-creator-portfolio:${{ github.sha }}
+
+          echo "Waiting for container to become ready..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "Container is healthy after ${i}s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Container did not become ready within 30 seconds"
+              docker logs smoke-test
+              docker rm -f smoke-test
+              exit 1
+            fi
+            sleep 1
+          done
+
+          docker rm -f smoke-test

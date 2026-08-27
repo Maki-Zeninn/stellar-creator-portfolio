@@ -62,7 +62,7 @@ const MOCK_EVENTS: ActivityEvent[] = Array.from({ length: 30 }, (_, i) => ({
   id: `evt-${i}`,
   type: EVENT_TYPES[i % EVENT_TYPES.length],
   title: '',
-  subtitle: i % 4 === 0 ? 'Logo design for Stellar platform' : undefined,
+  subtitle: i % 4 === 0 ? 'Logo design for Tamgora platform' : undefined,
   amount: [4, 7, 11].includes(i % 12) ? 250 + i * 10 : undefined,
   relatedId: `item-${i}`,
   relatedName: ['Alice Chen', 'Stellar Bounty #42', 'Bob Martinez', undefined][i % 4] ?? undefined,

@@ -3,7 +3,13 @@
  *
  * Step 1 — Profile:     name, username, email
  * Step 2 — Discipline:  pick discipline + up to 8 skill tags
- * Step 3 — Wallet:      WalletConnect deep-link (reuses LoginScreen logic)
+ * Step 3 — Wallet:      paste-your-address, optional (was a mandatory
+ *                       WalletConnect signature flow reusing LoginScreen's
+ *                       useWalletAuth — dropped for the same reason LoginScreen
+ *                       dropped it: that hook's actual return shape never
+ *                       matched what callers destructured from it, pre-existing
+ *                       and unrelated to this change. Proving wallet ownership
+ *                       via signature still happens later, at actual payout time.)
  *
  * Performance:
  *  - Step views rendered with translateX (native driver) — zero JS-thread cost
@@ -12,10 +18,11 @@
  *
  * Security:
  *  - All text inputs sanitized via useRegisterForm (HTML stripped)
- *  - Wallet key validated before final submit
+ *  - Wallet address format/checksum validated before saving (ownership is
+ *    proven separately, by a real wallet connection, when a payment is signed)
  */
 
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   KeyboardAvoidingView,
@@ -33,7 +40,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../theme/ThemeProvider";
 import { useRegisterForm, ProfileFields, DisciplineFields } from "../hooks/useRegisterForm";
-import { useWalletAuth } from "../hooks/useWalletAuth";
+import { Validators } from "../utils/formValidation";
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from "../theme/tokens";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -251,13 +258,8 @@ export function RegisterScreen({
     goBack,
   } = useRegisterForm(handleFormComplete);
 
-  const {
-    status: walletStatus,
-    session: walletSession,
-    error: walletError,
-    connect: walletConnect,
-    resetError: walletResetError,
-  } = useWalletAuth();
+  const [walletAddress, setWalletAddress] = useState("");
+  const [walletAddressError, setWalletAddressError] = useState<string | null>(null);
 
   // Animate slide when step changes
   useEffect(() => {
@@ -269,15 +271,6 @@ export function RegisterScreen({
     }).start();
   }, [step, slideAnim]);
 
-  // When wallet connects in step 3, complete registration
-  useEffect(() => {
-    if (step === 3 && walletStatus === "authenticated" && walletSession?.publicKey) {
-      submitFinal().then(() => {
-        onComplete(profile, discipline, walletSession.publicKey);
-      });
-    }
-  }, [step, walletStatus, walletSession, profile, discipline, submitFinal, onComplete]);
-
   const handleNext1 = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     submitStep1();
@@ -288,26 +281,45 @@ export function RegisterScreen({
     submitStep2();
   }, [submitStep2]);
 
-  const handleWalletConnect = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    walletConnect();
-  }, [walletConnect]);
+  const finishRegistration = useCallback(
+    (address: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      submitFinal().then(() => {
+        onComplete(profile, discipline, address);
+      });
+    },
+    [submitFinal, onComplete, profile, discipline]
+  );
+
+  const handleFinish = useCallback(() => {
+    const trimmed = walletAddress.trim();
+    if (!trimmed) {
+      finishRegistration("");
+      return;
+    }
+    const result = Validators.stellarAddress()(trimmed);
+    if (!result.isValid) {
+      setWalletAddressError(result.error ?? "Invalid address");
+      return;
+    }
+    setWalletAddressError(null);
+    finishRegistration(trimmed);
+  }, [walletAddress, finishRegistration]);
+
+  const handleSkipWallet = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    finishRegistration("");
+  }, [finishRegistration]);
 
   const handleBack = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (walletStatus === "error") walletResetError();
     goBack();
-  }, [goBack, walletStatus, walletResetError]);
+  }, [goBack]);
 
   const availableSkills = useMemo(
     () => SKILLS_BY_DISCIPLINE[discipline.discipline] ?? DEFAULT_SKILLS,
     [discipline.discipline]
   );
-
-  const walletBusy =
-    walletStatus === "connecting" ||
-    walletStatus === "awaiting_wallet" ||
-    walletStatus === "verifying";
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -491,60 +503,61 @@ export function RegisterScreen({
                 <Text style={styles.walletIcon}>🔐</Text>
               </View>
               <Text style={[styles.stepTitle, { color: colors.text }]}>
-                Connect your wallet
+                Add your wallet address
               </Text>
               <Text style={[styles.stepSub, { color: colors.textSecondary }]}>
-                Link a Stellar wallet to receive payments and sign transactions securely.
+                Where you'll receive bounty payouts. Optional — you can add or change this
+                later in settings. Connecting a wallet to actually sign a payment happens
+                separately, when one goes out.
               </Text>
 
-              {/* Status */}
-              {walletStatus !== "idle" && (
-                <View
-                  style={[
-                    styles.statusCard,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                  ]}
-                  accessibilityLiveRegion="polite"
-                >
-                  {walletBusy && (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  )}
-                  <Text style={[styles.statusText, { color: colors.text }]}>
-                    {walletStatus === "connecting"      && "Preparing connection…"}
-                    {walletStatus === "awaiting_wallet" && "Waiting for wallet approval…"}
-                    {walletStatus === "verifying"       && "Verifying your identity…"}
-                    {walletStatus === "authenticated"   && `Connected: ${walletSession?.publicKey?.slice(0, 8)}…`}
-                    {walletStatus === "error"           && (walletError ?? "Connection failed")}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.fields}>
+                <FieldRow
+                  label="Stellar wallet address (optional)"
+                  value={walletAddress}
+                  error={walletAddressError ?? undefined}
+                  touched={!!walletAddressError}
+                  onChangeText={(v) => {
+                    setWalletAddress(v);
+                    if (walletAddressError) setWalletAddressError(null);
+                  }}
+                  onBlur={() => {}}
+                  placeholder="G..."
+                  autoCapitalize="none"
+                  colors={colors}
+                />
+              </View>
 
-              {walletStatus !== "authenticated" && (
-                <Pressable
-                  onPress={walletStatus === "error" ? () => { walletResetError(); handleWalletConnect(); } : handleWalletConnect}
-                  disabled={walletBusy || isSubmitting}
-                  style={({ pressed }) => [
-                    styles.primaryBtn,
-                    { backgroundColor: walletBusy || isSubmitting ? colors.border : colors.primary },
-                    pressed && { opacity: 0.85 },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Connect Stellar wallet"
-                  accessibilityState={{ disabled: walletBusy || isSubmitting }}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.primaryBtnText}>
-                      {walletBusy ? "Connecting…" : walletStatus === "error" ? "Try Again" : "Connect Wallet"}
-                    </Text>
-                  )}
+              <Pressable
+                onPress={handleFinish}
+                disabled={isSubmitting}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  { backgroundColor: isSubmitting ? colors.border : colors.primary },
+                  pressed && { opacity: 0.85 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Finish creating account"
+                accessibilityState={{ disabled: isSubmitting }}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>Finish</Text>
+                )}
+              </Pressable>
+
+              {!walletAddress && (
+                <Pressable onPress={handleSkipWallet} disabled={isSubmitting} style={styles.skipLink}>
+                  <Text style={[styles.walletNote, { color: colors.textSecondary }]}>
+                    Skip for now
+                  </Text>
                 </Pressable>
               )}
 
               <Text style={[styles.walletNote, { color: colors.textTertiary }]}>
-                Compatible with Lobstr, Solar, Freighter, and any WalletConnect v2 wallet.
-                Your private key never leaves your device.
+                Ownership isn't verified from a pasted address alone — that happens when you
+                connect a real wallet to sign a payment.
               </Text>
             </View>
           )}
@@ -609,4 +622,5 @@ const styles = StyleSheet.create({
   },
   statusText: { fontSize: FontSize.sm, flex: 1 },
   walletNote: { fontSize: FontSize.xs, textAlign: "center", lineHeight: 18 },
+  skipLink: { alignItems: "center", paddingVertical: Spacing.sm },
 });

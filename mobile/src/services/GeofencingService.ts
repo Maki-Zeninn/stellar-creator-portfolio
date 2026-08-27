@@ -274,7 +274,7 @@ export async function startGeofencing(
       distanceInterval: BACKGROUND_DISTANCE_INTERVAL,
       showsBackgroundLocationIndicator: false, // silent — no blue bar on iOS
       foregroundService: {
-        notificationTitle: "Stellar",
+        notificationTitle: "Tamgora",
         notificationBody: "Checking for nearby events…",
       },
     });

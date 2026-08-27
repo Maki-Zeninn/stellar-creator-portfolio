@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import type { MultiSigState, MultiSigTask, MultiSigSigner } from '../types';
+import { authenticateBiometric } from '../services/BiometricAuthService';
 
-const createSigner = (id: string, name: string, status: MultiSigState['signers'][0]['status']): MultiSigSigner => ({
+const createSigner = (id: string, name: string, status: MultiSigSigner['status']): MultiSigSigner => ({
   id,
   name,
   role: id === 'initiator' ? 'Initiator' : 'Approver',
@@ -27,7 +28,12 @@ const initialTasks: MultiSigTask[] = [
 export const useMultiSigStore = create<MultiSigState>((set) => ({
   tasks: initialTasks,
 
-  queueApproval: (taskId, signerId) => {
+  // Approval requires a real, verified biometric confirmation from the signer's
+  // own device — there is no timer-based or otherwise unconditional path to
+  // 'approved'. If the confirmation fails or is cancelled, the signer is left
+  // 'pending' and the caller's awaited promise rejects so the UI can surface
+  // the failure.
+  queueApproval: async (taskId, signerId) => {
     set((state) => ({
       tasks: state.tasks.map((task) =>
         task.id !== taskId
@@ -41,11 +47,29 @@ export const useMultiSigStore = create<MultiSigState>((set) => ({
       ),
     }));
 
-    window.setTimeout(() => {
+    try {
+      const result = await authenticateBiometric();
+      if (!result.success) {
+        throw new Error(result.error ?? 'Biometric confirmation failed');
+      }
       useMultiSigStore.getState().approveSigner(taskId, signerId);
-    }, 1600);
+    } finally {
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id !== taskId
+            ? task
+            : {
+                ...task,
+                queuedApprovals: task.queuedApprovals.filter((id) => id !== signerId),
+              },
+        ),
+      }));
+    }
   },
 
+  // Internal: flips a signer to 'approved'. Only ever called after
+  // `queueApproval` has verified a real biometric confirmation above —
+  // never call this directly from UI code.
   approveSigner: (taskId, signerId) => {
     set((state) => ({
       tasks: state.tasks.map((task) => {
@@ -58,7 +82,7 @@ export const useMultiSigStore = create<MultiSigState>((set) => ({
             ? signer
             : {
                 ...signer,
-                status: 'approved',
+                status: 'approved' as const,
               },
         );
 
@@ -67,7 +91,6 @@ export const useMultiSigStore = create<MultiSigState>((set) => ({
           ...task,
           signers,
           status: pending ? 'pending' : 'approved',
-          queuedApprovals: task.queuedApprovals.filter((id) => id !== signerId),
         };
       }),
     }));

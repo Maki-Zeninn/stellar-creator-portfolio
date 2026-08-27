@@ -10,6 +10,9 @@ crate-type = ["cdylib", "rlib"]
 soroban-sdk = "21.7.7"
 soroban-token-sdk = "21.7.7"
 
+[dev-dependencies]
+soroban-sdk = { version = "21.7.7", features = ["testutils"] }
+
 [profile.release]
 opt-level = "z"
 overflow-checks = true

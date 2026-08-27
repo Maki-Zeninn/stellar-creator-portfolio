@@ -25,6 +25,7 @@ fn price(env: &Env, micro_usd: i128) -> PriceData {
     PriceData {
         price_micro_usd: micro_usd,
         timestamp: env.ledger().timestamp(),
+        sources: 1,
     }
 }
 

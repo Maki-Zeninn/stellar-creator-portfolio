@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AnalyticsMetricsSkeleton, AnalyticsListSkeleton } from "@/components/ui/skeleton-group";
+import { formatDate } from "@/lib/utils";
 
 type Aggregate = {
   visitors: number;
@@ -171,7 +172,7 @@ async function BackupStatusSection() {
         <div style={styles.card}>
           <p style={styles.cardLabel}>Monthly Restore Drill</p>
           <p style={{ ...styles.cardValue, color: drillStatus === "Passed" ? "#818cf8" : "#ef4444" }}>{drillStatus}</p>
-          <span style={{ fontSize: "12px", color: "#94a3b8" }}>Last Drill: {drillTime.toLocaleDateString()}</span>
+          <span style={{ fontSize: "12px", color: "#94a3b8" }}>Last Drill: {formatDate(drillTime, 'default')}</span>
         </div>
       </div>
     </section>

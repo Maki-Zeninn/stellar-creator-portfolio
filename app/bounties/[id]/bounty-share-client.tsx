@@ -15,10 +15,10 @@ export function BountyShareButton({
 }) {
   return (
     <SocialShare
-      title={`${title} — ${currency} ${budget.toLocaleString()} bounty on Stellar Creators`}
+      title={`${title} — ${currency} ${budget.toLocaleString()} bounty on Tamgora`}
       description={`Check out this bounty: ${title}`}
       url={`/bounties/${bountyId}`}
-      hashtags={['StellarBounty', 'Web3', 'Stellar']}
+      hashtags={['TamgoraBounty', 'Web3', 'Stellar']}
     />
   )
 }

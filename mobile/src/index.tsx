@@ -1,6 +1,6 @@
 /**
  * Mobile App Entry Point
- * Stellar Creator Portfolio Mobile Application
+ * Tamgora Mobile Application
  */
 
 import React, { useEffect } from 'react';

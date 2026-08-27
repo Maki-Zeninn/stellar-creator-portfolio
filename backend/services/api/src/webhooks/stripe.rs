@@ -73,7 +73,7 @@ pub fn verify_signature(secret: &str, body: &[u8], signature_header: &str) -> Re
 // ── Idempotency ───────────────────────────────────────────────────────────────
 
 const PROCESSED_EVENTS_PREFIX: &str = "webhook:processed:";
-const PROCESSED_EVENTS_TTL: usize = 86400; // 24 hours
+const PROCESSED_EVENTS_TTL: u64 = 86400; // 24 hours
 
 /// Check if an event has already been processed (idempotency check).
 /// Returns `Ok(false)` if new, `Ok(true)` if duplicate, `Err` on Redis error.
@@ -213,6 +213,24 @@ pub async fn payment_webhook(
 pub mod tests {
     use super::*;
     use actix_web::{test as awtest, web, App};
+    use std::sync::Mutex;
+
+    // `cargo test` runs test functions on multiple threads by default, but
+    // `std::env::set_var`/`remove_var` mutate process-global state — two of
+    // these tests running concurrently can see each other's WEBHOOK_SECRET
+    // briefly unset. Serialize just the tests that touch it.
+    lazy_static::lazy_static! {
+        static ref WEBHOOK_SECRET_ENV_LOCK: Mutex<()> = Mutex::new(());
+    }
+
+    /// `payment_webhook` extracts `web::Data<Pool>`; without registering one,
+    /// actix rejects the request before the handler body runs at all (every
+    /// test would see 500s regardless of what it's actually exercising).
+    fn test_redis_pool() -> Pool {
+        deadpool_redis::Config::from_url("redis://127.0.0.1:6379/")
+            .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+            .expect("failed to create test redis pool")
+    }
 
     fn make_sig(secret: &str, body: &[u8]) -> String {
         type HmacSha256 = Hmac<Sha256>;
@@ -221,13 +239,19 @@ pub mod tests {
         format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
     }
 
+    /// Unique per call so repeated test runs against a real (non-flushed)
+    /// Redis instance don't get short-circuited by the idempotency check.
+    fn unique_event_id() -> String {
+        format!("evt_{}", uuid::Uuid::new_v4())
+    }
+
     fn valid_payload() -> serde_json::Value {
         serde_json::json!({
             "event_type": "payment_succeeded",
             "escrow_id": "42",
             "amount": 2500,
             "timestamp": "2026-04-23T12:00:00Z",
-            "provider_event_id": "evt_001"
+            "provider_event_id": unique_event_id()
         })
     }
 
@@ -296,9 +320,12 @@ pub mod tests {
 
     #[actix_web::test]
     async fn valid_webhook_returns_200_with_ack() {
+        let _guard = WEBHOOK_SECRET_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         std::env::set_var("WEBHOOK_SECRET", "testsecret");
         let app = awtest::init_service(
-            App::new().route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
+            App::new()
+                .app_data(web::Data::new(test_redis_pool()))
+                .route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
         ).await;
 
         let body = serde_json::to_vec(&valid_payload()).unwrap();
@@ -326,9 +353,12 @@ pub mod tests {
 
     #[actix_web::test]
     async fn missing_signature_returns_401() {
+        let _guard = WEBHOOK_SECRET_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         std::env::set_var("WEBHOOK_SECRET", "testsecret");
         let app = awtest::init_service(
-            App::new().route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
+            App::new()
+                .app_data(web::Data::new(test_redis_pool()))
+                .route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
         ).await;
 
         let body = serde_json::to_vec(&valid_payload()).unwrap();
@@ -345,9 +375,12 @@ pub mod tests {
 
     #[actix_web::test]
     async fn wrong_signature_returns_401() {
+        let _guard = WEBHOOK_SECRET_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         std::env::set_var("WEBHOOK_SECRET", "testsecret");
         let app = awtest::init_service(
-            App::new().route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
+            App::new()
+                .app_data(web::Data::new(test_redis_pool()))
+                .route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
         ).await;
 
         let body = serde_json::to_vec(&valid_payload()).unwrap();
@@ -365,9 +398,12 @@ pub mod tests {
 
     #[actix_web::test]
     async fn invalid_json_returns_400() {
+        let _guard = WEBHOOK_SECRET_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         std::env::set_var("WEBHOOK_SECRET", "testsecret");
         let app = awtest::init_service(
-            App::new().route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
+            App::new()
+                .app_data(web::Data::new(test_redis_pool()))
+                .route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
         ).await;
 
         let body = b"not-json";
@@ -386,9 +422,12 @@ pub mod tests {
 
     #[actix_web::test]
     async fn unconfigured_secret_returns_401() {
+        let _guard = WEBHOOK_SECRET_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         std::env::remove_var("WEBHOOK_SECRET");
         let app = awtest::init_service(
-            App::new().route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
+            App::new()
+                .app_data(web::Data::new(test_redis_pool()))
+                .route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
         ).await;
 
         let body = serde_json::to_vec(&valid_payload()).unwrap();
@@ -405,9 +444,12 @@ pub mod tests {
 
     #[actix_web::test]
     async fn dispute_event_maps_correctly() {
+        let _guard = WEBHOOK_SECRET_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         std::env::set_var("WEBHOOK_SECRET", "testsecret");
         let app = awtest::init_service(
-            App::new().route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
+            App::new()
+                .app_data(web::Data::new(test_redis_pool()))
+                .route("/api/v1/webhooks/payment", web::post().to(payment_webhook)),
         ).await;
 
         let payload = serde_json::json!({
@@ -415,7 +457,7 @@ pub mod tests {
             "escrow_id": "7",
             "amount": 1000,
             "timestamp": "2026-04-23T12:00:00Z",
-            "provider_event_id": "evt_002"
+            "provider_event_id": unique_event_id()
         });
         let body = serde_json::to_vec(&payload).unwrap();
         let sig = make_sig("testsecret", &body);

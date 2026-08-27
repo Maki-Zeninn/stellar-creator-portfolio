@@ -25,6 +25,7 @@ import { useTheme } from "../theme/ThemeProvider";
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from "../theme/tokens";
 import apiClient, { ApiError, NetworkError } from "../services/ApiClient";
 import { useToast } from "../context/ToastContext";
+import { formatDate } from "../utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -379,7 +380,7 @@ function formatTime(timestamp: string): string {
   if (diffMins < 60) return `${diffMins}m`;
   if (diffHours < 24) return `${diffHours}h`;
   if (diffDays < 7) return `${diffDays}d`;
-  return time.toLocaleDateString();
+  return formatDate(time);
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

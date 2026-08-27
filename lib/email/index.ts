@@ -1,2 +1,2 @@
-export * from './mailer';
 export * from './bounty-notify';
+export * from './mailer';

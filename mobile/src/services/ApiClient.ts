@@ -15,7 +15,7 @@ import { Platform } from 'react-native';
 
 const API_BASE_URL = __DEV__ 
   ? Platform.OS === 'ios' ? 'http://localhost:3001' : 'http://10.0.2.2:3001'
-  : 'https://api.stellar.app';
+  : 'https://api.tamgora.app';
 
 const API_TIMEOUT = 15000; // 15 seconds
 

@@ -167,7 +167,7 @@ export function ThemeSettingsScreen({ onBack }: ThemeSettingsScreenProps) {
         )}
         <Text style={[styles.title, { color: colors.text }]}>Appearance</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Choose how Stellar looks on your device
+          Choose how Tamgora looks on your device
         </Text>
       </View>
 

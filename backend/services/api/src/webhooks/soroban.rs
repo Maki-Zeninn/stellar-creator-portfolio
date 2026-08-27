@@ -3,7 +3,7 @@
 /// Allows external consumers to register HTTPS endpoints that receive
 /// platform events (bounty, escrow, governance) as they are emitted by
 /// the Soroban contracts indexed by the event indexer.
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpMessage, HttpRequest, HttpResponse};
 use deadpool_redis::{redis::AsyncCommands, Pool};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -76,19 +76,38 @@ fn is_private_or_reserved_host(host: &str) -> bool {
                 v4.is_loopback()
                     || v4.is_private()
                     || v4.is_link_local()
-                    || v4.is_reserved()
+                    || ipv4_is_reserved(&v4)
                     || v4.is_unspecified()
             }
             IpAddr::V6(v6) => {
                 v6.is_loopback()
-                    || v6.is_private()
-                    || v6.is_link_local()
+                    || ipv6_is_unique_local(&v6)
+                    || ipv6_is_unicast_link_local(&v6)
                     || v6.is_unspecified()
             }
         };
     }
 
     false
+}
+
+/// `Ipv4Addr::is_reserved` (IANA "reserved for future use", `240.0.0.0/4`,
+/// excluding the broadcast address) — stable equivalent. The corresponding
+/// `std` method is still nightly-only (the `ip` feature).
+fn ipv4_is_reserved(v4: &std::net::Ipv4Addr) -> bool {
+    v4.octets()[0] & 0xf0 == 240 && !v4.is_broadcast()
+}
+
+/// `Ipv6Addr::is_private` (unique local, `fc00::/7`) — stable equivalent.
+/// The corresponding `std` method is still nightly-only (the `ip` feature).
+fn ipv6_is_unique_local(v6: &std::net::Ipv6Addr) -> bool {
+    (v6.segments()[0] & 0xfe00) == 0xfc00
+}
+
+/// `Ipv6Addr::is_link_local` (unicast, `fe80::/10`) — stable equivalent.
+/// The corresponding `std` method is still nightly-only (the `ip` feature).
+fn ipv6_is_unicast_link_local(v6: &std::net::Ipv6Addr) -> bool {
+    (v6.segments()[0] & 0xffc0) == 0xfe80
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -284,10 +303,13 @@ pub async fn trigger_webhooks(redis: &Pool, event: &str, data: serde_json::Value
 
             if let Some(sec) = secret {
                 type HmacSha256 = Hmac<Sha256>;
-                let mut mac = HmacSha256::new_from_slice(sec.as_bytes()).unwrap_or_else(|_| {
-                    tracing::warn!("Invalid HMAC secret for webhook");
-                    return;
-                });
+                let mut mac = match HmacSha256::new_from_slice(sec.as_bytes()) {
+                    Ok(mac) => mac,
+                    Err(_) => {
+                        tracing::warn!("Invalid HMAC secret for webhook");
+                        return;
+                    }
+                };
                 mac.update(&payload_bytes);
                 let signature = format!("sha256={}", hex::encode(mac.finalize().into_bytes()));
                 request = request.header("X-Webhook-Signature", signature);

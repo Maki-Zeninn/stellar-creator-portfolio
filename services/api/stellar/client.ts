@@ -15,7 +15,7 @@
  *     `Retry-After: 30`
  */
 
-import { rpc, Networks } from '@stellar/stellar-sdk';
+import { rpc, Networks, type Account } from '@stellar/stellar-sdk';
 import { getSecret } from '@/backend/services/kms';
 import {
   stellarCircuitBreaker,
@@ -40,8 +40,8 @@ const defaultContractId = process.env.CONTRACT_ID ?? '';
 /**
  * Wraps `rpc.Server` so every method call is guarded by the circuit breaker.
  *
- * Only the methods actually used by ContractService / ImprovedContractService
- * are proxied here. Add more as the surface area grows.
+ * Only the methods actually used by ContractService are proxied here.
+ * Add more as the surface area grows.
  */
 class ProtectedRpcServer {
   private readonly server: rpc.Server;
@@ -51,7 +51,7 @@ class ProtectedRpcServer {
   }
 
   /** Fetch account details — fails fast when circuit is OPEN. */
-  getAccount(publicKey: string): Promise<rpc.Api.AccountResponse> {
+  getAccount(publicKey: string): Promise<Account> {
     return stellarCircuitBreaker.execute(() =>
       this.server.getAccount(publicKey),
     );
@@ -148,7 +148,7 @@ export class StellarClient {
 
 // ── Module-level singleton ─────────────────────────────────────────────────
 //
-// Used by ContractService and ImprovedContractService.
+// Used by ContractService.
 // The instance is initialised lazily on first `getInstance()` call; the
 // module-level export provides a synchronous handle for code that imports
 // the module after initialisation has already completed (common in Next.js).

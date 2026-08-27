@@ -6,13 +6,13 @@ export const metadata: Metadata = {
   description:
     'Browse available bounties across design, content creation, development, and marketing. Find exciting paid opportunities and collaborate with top talent.',
   openGraph: {
-    title: 'Bounty Directory — Stellar Creator Portfolio',
+    title: 'Bounty Directory — Tamgora',
     description:
       'Browse available bounties across design, content creation, development, and marketing.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Bounty Directory — Stellar Creator Portfolio',
+    title: 'Bounty Directory — Tamgora',
     description:
       'Browse available bounties across design, content creation, development, and marketing.',
   },

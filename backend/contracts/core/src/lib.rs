@@ -3,7 +3,7 @@
 pub mod fee;
 
 use fee::{assert_valid_fee_bps, compute_fee, compute_net, MAX_FEE_BPS};
-use soroban_sdk::{contract, contractimpl, contracttype, panic_with_error, symbol_short, Address, Env, Symbol};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, Address, Env, Symbol};
 
 const FEE_KEY: Symbol = symbol_short!("fee_bps");
 const ADMIN_KEY: Symbol = symbol_short!("admin");
@@ -18,20 +18,15 @@ pub enum DataKey {
 
 // ── Error codes (#820) ───────────────────────────────────────────────────────
 
-#[contracttype]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
 pub enum CoreError {
     Paused = 1,
     NotGuardian = 2,
     NotGovernance = 3,
     AlreadyPaused = 4,
     NotPaused = 5,
-}
-
-impl soroban_sdk::contracterror::ContractError for CoreError {
-    fn as_i32(&self) -> i32 {
-        *self as i32
-    }
 }
 
 // ── Internal helpers (#820) ──────────────────────────────────────────────────
@@ -151,7 +146,7 @@ impl CoreContract {
     // ── Fee management ────────────────────────────────────────────────────────
 
     /// Update the platform fee. Only the admin may call this.
-    /// Panics if `new_fee_bps > 10_000` (#517 basis-point limit guard).
+    /// Panics if `new_fee_bps > 1_000` — hard ceiling of 10% (#1104 / #517).
     /// Panics if the contract is paused (#820).
     pub fn set_fee(env: Env, caller: Address, new_fee_bps: u32) {
         require_not_paused(&env);
@@ -238,21 +233,22 @@ mod tests {
         let env = Env::default();
         env.mock_all_auths();
         let (client, admin) = deploy(&env, 250);
-        client.set_fee(&admin, &10_000);
-        assert_eq!(client.get_fee(), 10_000);
+        // 1_000 bps == 10% — the new hard ceiling
+        client.set_fee(&admin, &1_000);
+        assert_eq!(client.get_fee(), 1_000);
     }
 
     #[test]
-    #[should_panic(expected = "Fee exceeds maximum of 10000 basis points")]
+    #[should_panic(expected = "Fee exceeds maximum of 1000 basis points (10%)")]
     fn test_fee_limit_rejection_one_above_max() {
         let env = Env::default();
         env.mock_all_auths();
         let (client, admin) = deploy(&env, 250);
-        client.set_fee(&admin, &10_001);
+        client.set_fee(&admin, &1_001);
     }
 
     #[test]
-    #[should_panic(expected = "Fee exceeds maximum of 10000 basis points")]
+    #[should_panic(expected = "Fee exceeds maximum of 1000 basis points (10%)")]
     fn test_fee_limit_rejection_large_value() {
         let env = Env::default();
         env.mock_all_auths();
@@ -279,13 +275,14 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_fee_100_percent() {
+    fn test_calculate_fee_at_max() {
         let env = Env::default();
         env.mock_all_auths();
         let (client, admin) = deploy(&env, 250);
-        client.set_fee(&admin, &10_000);
-        assert_eq!(client.calculate_fee(&1_000), 1_000);
-        assert_eq!(client.calculate_net(&1_000), 0);
+        // 1_000 bps == 10% — the enforced ceiling
+        client.set_fee(&admin, &1_000);
+        assert_eq!(client.calculate_fee(&10_000), 1_000);
+        assert_eq!(client.calculate_net(&10_000), 9_000);
     }
 
     // ── Pause mechanism tests (#820) ──────────────────────────────────────────

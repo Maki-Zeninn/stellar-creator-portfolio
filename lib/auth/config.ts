@@ -1,20 +1,37 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { createHash, scryptSync, timingSafeEqual } from 'crypto';
+import GoogleProvider from 'next-auth/providers/google';
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { upsertOAuthUser } from '@/lib/auth/oauth-user';
+
+// Legacy scheme (pre-fix): every account shared this one hardcoded salt,
+// which defeats the point of salting. Kept only so accounts hashed before
+// this fix can still log in; verifyPassword upgrades them to the new
+// per-user random-salt format on successful login.
+const LEGACY_SALT = createHash('sha256').update('stellar-salt').digest();
 
 function hashPassword(password: string): string {
-  const salt = createHash('sha256').update('stellar-salt').digest();
+  const salt = randomBytes(16);
   const hash = scryptSync(password, salt, 64);
-  return hash.toString('hex');
+  return `${salt.toString('hex')}:${hash.toString('hex')}`;
 }
 
 function verifyPassword(password: string, stored: string): boolean {
-  const salt = createHash('sha256').update('stellar-salt').digest();
+  const sepIndex = stored.indexOf(':');
+  if (sepIndex === -1) {
+    // Legacy fixed-salt hash — no embedded salt.
+    const hash = scryptSync(password, LEGACY_SALT, 64);
+    const storedBuf = Buffer.from(stored, 'hex');
+    if (hash.length !== storedBuf.length) return false;
+    return timingSafeEqual(hash, storedBuf);
+  }
+
+  const salt = Buffer.from(stored.slice(0, sepIndex), 'hex');
+  const storedHash = Buffer.from(stored.slice(sepIndex + 1), 'hex');
   const hash = scryptSync(password, salt, 64);
-  const storedBuf = Buffer.from(stored, 'hex');
-  if (hash.length !== storedBuf.length) return false;
-  return timingSafeEqual(hash, storedBuf);
+  if (hash.length !== storedHash.length) return false;
+  return timingSafeEqual(hash, storedHash);
 }
 
 export const authOptions: NextAuthOptions = {
@@ -38,6 +55,15 @@ export const authOptions: NextAuthOptions = {
         if (!user?.password || !user.emailVerified) return null;
         if (!verifyPassword(credentials.password, user.password)) return null;
 
+        // Transparently upgrade legacy fixed-salt hashes to the new
+        // per-user random-salt format now that we know the plaintext.
+        if (!user.password.includes(':')) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { password: hashPassword(credentials.password) },
+          });
+        }
+
         return {
           id: user.id,
           email: user.email,
@@ -48,8 +74,41 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    // Only registered when real credentials are configured, so a missing
+    // GOOGLE_CLIENT_ID doesn't surface a "Continue with Google" button that
+    // can't actually work.
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
+    // Google doesn't go through `authorize()` above, so it never gets our
+    // internal user id/role/onboarding state. Look up (or create, on first
+    // sign-in) the matching User row and graft those fields onto `user`
+    // here — `jwt` below then treats both providers identically.
+    async signIn({ user, account }) {
+      if (account?.provider !== 'google') return true;
+      if (!user.email) return false;
+
+      const dbUser = await upsertOAuthUser({
+        email: user.email,
+        name: user.name,
+        image: user.image,
+      });
+
+      user.id = dbUser.id;
+      (user as { role?: string }).role = dbUser.role;
+      (user as { emailVerified?: string | null }).emailVerified =
+        dbUser.emailVerified?.toISOString() ?? null;
+      (user as { onboardingCompleted?: boolean }).onboardingCompleted =
+        !!dbUser.onboardingCompletedAt;
+      return true;
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;

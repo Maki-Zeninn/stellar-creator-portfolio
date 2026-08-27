@@ -34,7 +34,7 @@ interface IconOption {
 }
 
 const ICON_OPTIONS: IconOption[] = [
-  { name: 'default',   label: 'Default',   color: '#4F8EF7', description: 'The original Stellar icon' },
+  { name: 'default',   label: 'Default',   color: '#4F8EF7', description: 'The original Tamgora icon' },
   { name: 'aurora',    label: 'Aurora',    color: '#A78BFA', description: 'Vibrant aurora gradients' },
   { name: 'midnight',  label: 'Midnight',  color: '#1E3A5F', description: 'Deep blue night sky' },
   { name: 'forest',    label: 'Forest',    color: '#22C55E', description: 'Fresh green tones' },

@@ -3,7 +3,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
-  description: 'Manage your projects, bounties, and earnings on Stellar Creator Portfolio.',
+  description: 'Manage your projects, bounties, and earnings on Tamgora.',
 };
 
 export default function DashboardLayout({

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, Upload, Download, Pin, Trash2, Eye, Copy, ExternalLink } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 interface IPFSFile {
   cid: string;
@@ -85,25 +86,25 @@ class MockIPFSClient {
 
   async deleteFile(cid: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 500));
-    this.files = this.files.filter(f => f.cid !== cid);
+    this.files = this.files.filter(ipfsFile => ipfsFile.cid !== cid);
   }
 
   async pinFile(cid: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300));
-    const file = this.files.find(f => f.cid === cid);
+    const file = this.files.find(ipfsFile => ipfsFile.cid === cid);
     if (file) file.pinned = true;
   }
 
   async unpinFile(cid: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300));
-    const file = this.files.find(f => f.cid === cid);
+    const file = this.files.find(ipfsFile => ipfsFile.cid === cid);
     if (file) file.pinned = false;
   }
 
   getStats(): IPFSStats {
     const totalFiles = this.files.length;
-    const totalSize = this.files.reduce((sum, f) => sum + f.size, 0);
-    const pinnedFiles = this.files.filter(f => f.pinned).length;
+    const totalSize = this.files.reduce((sum, ipfsFile) => sum + ipfsFile.size, 0);
+    const pinnedFiles = this.files.filter(ipfsFile => ipfsFile.pinned).length;
     
     return {
       totalFiles,
@@ -119,20 +120,10 @@ const ipfsClient = new MockIPFSClient();
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
-  const k = 1024;
+  const bytesPerUnit = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const unitIndex = Math.floor(Math.log(bytes) / Math.log(bytesPerUnit));
+  return parseFloat((bytes / Math.pow(bytesPerUnit, unitIndex)).toFixed(2)) + ' ' + sizes[unitIndex];
 }
 
 interface FileListProps {
@@ -155,8 +146,8 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
   if (loading) {
     return (
       <div className="space-y-3">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="animate-pulse">
+        {[1, 2, 3].map(skeletonIndex => (
+          <div key={skeletonIndex} className="animate-pulse">
             <div className="h-20 bg-muted rounded-lg"></div>
           </div>
         ))}
@@ -187,7 +178,7 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                   {file.pinned && <Badge variant="secondary" className="text-xs">Pinned</Badge>}
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>{formatBytes(file.size)} • {formatDate(file.uploadedAt)}</p>
+                  <p>{formatBytes(file.size)} • {formatDate(file.uploadedAt, 'date-time')}</p>
                   {file.description && (
                     <p className="text-xs">{file.description}</p>
                   )}
@@ -202,27 +193,30 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                   size="sm"
                   variant="ghost"
                   onClick={() => onView(file)}
+                  aria-label="View file"
                   title="View file"
                 >
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 </Button>
                 
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => navigator.clipboard.writeText(file.cid)}
+                  aria-label="Copy CID"
                   title="Copy CID"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4" aria-hidden="true" />
                 </Button>
 
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => window.open(`https://ipfs.io/ipfs/${file.cid}`, '_blank')}
+                  aria-label="Open in IPFS gateway"
                   title="Open in IPFS gateway"
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 </Button>
                 
                 {file.pinned ? (
@@ -230,18 +224,20 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                     size="sm"
                     variant="ghost"
                     onClick={() => onUnpin(file.cid)}
+                    aria-label="Unpin file"
                     title="Unpin file"
                   >
-                    <Pin className="h-4 w-4 text-blue-500" />
+                    <Pin className="h-4 w-4 text-blue-500" aria-hidden="true" />
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => onPin(file.cid)}
+                    aria-label="Pin file"
                     title="Pin file"
                   >
-                    <Pin className="h-4 w-4" />
+                    <Pin className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 )}
                 
@@ -250,9 +246,10 @@ function FileList({ files, loading, onPin, onUnpin, onDelete, onView }: FileList
                   variant="ghost"
                   onClick={() => onDelete(file.cid)}
                   className="text-destructive"
+                  aria-label="Delete file"
                   title="Delete file"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>

@@ -54,7 +54,7 @@ export async function sendClientNewApplicationEmail(params: {
       bodyText: `${params.applicantName} submitted a proposal for "${params.bountyTitle}". Review applications in your dashboard.`,
       actionUrl: `${appUrl}/dashboard/bounties/${params.bountyId}`,
       actionLabel: 'Review applications',
-      footerNote: 'Sign in to Stellar Creators to accept or reject proposals.',
+      footerNote: 'Sign in to Tamgora Creators to accept or reject proposals.',
     },
   })
 }

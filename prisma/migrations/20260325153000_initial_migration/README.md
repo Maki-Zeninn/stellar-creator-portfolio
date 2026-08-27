@@ -1,6 +1,6 @@
 # Initial Migration
 
-This migration creates all database tables required for the Stellar Creator Portfolio platform.
+This migration creates all database tables required for the Tamgora platform.
 
 ## Tables Created
 

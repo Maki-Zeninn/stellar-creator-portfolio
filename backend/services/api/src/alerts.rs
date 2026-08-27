@@ -434,14 +434,15 @@ mod tests {
     // ── update ────────────────────────────────────────────────────────────────
 
     /// Helper: create an alert as `owner_sub` and return its ID.
-    async fn seed_alert(
-        app: &impl actix_web::dev::Service<
-            actix_web::dev::ServiceRequest,
-            Response = actix_web::dev::ServiceResponse,
+    async fn seed_alert<S, B>(app: &S, owner_sub: &str) -> String
+    where
+        S: actix_web::dev::Service<
+            actix_http::Request,
+            Response = actix_web::dev::ServiceResponse<B>,
             Error = actix_web::Error,
         >,
-        owner_sub: &str,
-    ) -> String {
+        B: actix_web::body::MessageBody,
+    {
         let token = make_token(owner_sub, "creator", 3600);
         let req = awtest::TestRequest::post()
             .uri("/api/v1/alerts")

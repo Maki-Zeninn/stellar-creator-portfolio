@@ -21,9 +21,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   return {
     title: `${creator.name} — ${creator.title}`,
-    description: creator.bio || `View ${creator.name}'s portfolio, projects, and skills on Stellar Creator Portfolio.`,
+    description: creator.bio || `View ${creator.name}'s portfolio, projects, and skills on Tamgora.`,
     openGraph: {
-      title: `${creator.name} — ${creator.title} | Stellar Creator Portfolio`,
+      title: `${creator.name} — ${creator.title} | Tamgora`,
       description: creator.bio,
       images: creator.avatar
         ? [{ url: creator.avatar, width: 400, height: 400, alt: creator.name }]
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${creator.name} — ${creator.title} | Stellar Creator Portfolio`,
+      title: `${creator.name} — ${creator.title} | Tamgora`,
       description: creator.bio,
     },
   };

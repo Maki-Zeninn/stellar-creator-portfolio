@@ -30,6 +30,7 @@ import { ProjectBountyList } from "../components/home/ProjectBountyList";
 import { ActionButton } from "../components/buttons/ActionButton";
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from "../theme/tokens";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { trigger } from "../haptics/HapticEngine";
 
 const buildHomeData = (): HomeData => ({
   trendingPortfolios: [
@@ -199,9 +200,13 @@ export function HomeScreen() {
   });
 
   const handleRefresh = useCallback(async () => {
+    void trigger("light");
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
   }, [refetch]);
 
   const onPortfolioPress = useCallback((portfolio: PortfolioSummary) => {

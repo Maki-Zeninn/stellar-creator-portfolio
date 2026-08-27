@@ -273,7 +273,7 @@ export function ImagePickerScreen({
   const showPermissionDeniedAlert = useCallback(() => {
     Alert.alert(
       "Permission Required",
-      "Stellar needs access to your photos to upload portfolio images. Please enable it in Settings.",
+      "Tamgora needs access to your photos to upload portfolio images. Please enable it in Settings.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Open Settings", onPress: () => Linking.openSettings() },

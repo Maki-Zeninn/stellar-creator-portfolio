@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Star } from 'lucide-react';
+import { getAvatarInitials } from '@/lib/utils';
 
 export interface Testimonial {
   id: string;
@@ -30,7 +31,7 @@ const testimonials: Testimonial[] = [
     author: 'Sarah Chen',
     role: 'Product Manager, TechStartup',
     quote:
-      'Stellar connected us with incredible designers who transformed our product. The process was seamless and professional.',
+      'Tamgora connected us with incredible designers who transformed our product. The process was seamless and professional.',
     rating: 5,
     featured: true,
     createdAt: '2024-11-12T10:00:00Z',
@@ -70,17 +71,10 @@ const testimonials: Testimonial[] = [
   },
 ];
 
-/** Initials avatar fallback */
 function InitialsAvatar({ name }: { name: string }) {
-  const initials = name
-    .split(' ')
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
   return (
     <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-accent/20 text-accent font-semibold text-sm select-none">
-      {initials}
+      {getAvatarInitials(name)}
     </span>
   );
 }
@@ -168,7 +162,7 @@ export function TestimonialsSection({ featuredOnly = true }: TestimonialsSection
             Loved by Creators &amp; Clients
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            See what industry leaders are saying about Stellar
+            See what industry leaders are saying about Tamgora
           </p>
         </div>
 

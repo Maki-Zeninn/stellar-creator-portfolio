@@ -1,5 +1,5 @@
 /**
- * Design tokens — Stellar brand palette, light + dark variants.
+ * Design tokens — Tamgora brand palette, light + dark variants.
  */
 
 export const LightColors = {

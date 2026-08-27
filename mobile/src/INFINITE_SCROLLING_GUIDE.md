@@ -2,7 +2,7 @@
  * INFINITE SCROLLING IMPLEMENTATION GUIDE
  * 
  * This document provides a comprehensive guide for implementing
- * memory-optimized infinite scrolling in the Stellar mobile app.
+ * memory-optimized infinite scrolling in the Tamgora mobile app.
  * 
  * Files Created:
  * ├── hooks/
