@@ -26,8 +26,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { useTheme } from "../theme/ThemeProvider";
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
-import { usePagination } from "../hooks/usePagination";
-import { FontSize, FontWeight, Radius, Shadow, Spacing } from "../theme/tokens";
+import { FontSize, FontWeight, Radius, Spacing } from "../theme/tokens";
 
 interface FreelancerStats {
   projects: number;

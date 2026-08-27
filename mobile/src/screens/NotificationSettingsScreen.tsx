@@ -10,7 +10,7 @@ import {
 import { useTheme } from '../theme/ThemeProvider';
 import { FontSize, FontWeight, Radius, Spacing } from '../theme/tokens';
 import { useUIStore } from '../store/uiStore';
-import { NotificationAggregator } from '../services/NotificationAggregator';
+
 
 interface NotificationSettingsScreenProps {
   onBack?: () => void;

@@ -18,7 +18,7 @@ import {
   XLMTransferParams,
   FeeEstimate,
 } from '../services/PeerTransferService';
-import { getBiometricSupport, authenticateBiometric } from '../services/BiometricAuthService';
+import { authenticateBiometric } from '../services/BiometricAuthService';
 import { FontSize, FontWeight, Radius, Spacing } from '../theme/tokens';
 import { trigger as triggerHaptic } from '../haptics/HapticEngine';
 

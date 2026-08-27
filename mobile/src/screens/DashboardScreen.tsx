@@ -39,7 +39,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { useOfflineData } from '../hooks/useOfflineData';
 import { AnalyticsPeriod, DashboardData, MetricCard as MetricCardType } from '../types';
 import { FontSize, FontWeight, Radius, Shadow, Spacing } from '../theme/tokens';
-import FinancialChart from '../components/FinancialChart';
+
 
 // ─── Mock fetcher (replace with real API call) ────────────────────────────────
 

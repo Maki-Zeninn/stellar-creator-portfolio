@@ -41,7 +41,7 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "../theme/ThemeProvider";
 import { useRegisterForm, ProfileFields, DisciplineFields } from "../hooks/useRegisterForm";
 import { Validators } from "../utils/formValidation";
-import { FontSize, FontWeight, Radius, Shadow, Spacing } from "../theme/tokens";
+import { FontSize, FontWeight, Radius, Spacing } from "../theme/tokens";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
