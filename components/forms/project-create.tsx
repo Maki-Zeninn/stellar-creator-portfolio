@@ -93,6 +93,12 @@ function TemplatePicker({ onSelect, onSkip }: { onSelect: (t: BountyTemplate) =>
 
 // ─── Main Form ────────────────────────────────────────────────────────────────
 
+/**
+ * Two-step project/bounty creation form: an optional template picker
+ * (pre-fills fields from `BOUNTY_TEMPLATES`) followed by the editable form
+ * fields. On submit it calls the `projects.create` tRPC mutation, then the
+ * `onSubmit` callback with the entered values, and resets the form.
+ */
 export function ProjectCreateForm({ onSubmit, onCancel }: ProjectCreateFormProps) {
   const [step, setStep] = useState<Step>('template');
   const [title, setTitle] = useState('');
