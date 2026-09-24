@@ -8,6 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { paymentFlowSchema, validatePaymentFlow, type PaymentFlowData } from '@/lib/payment-validation';
 
+/**
+ * SEP-24 payment form: collects and validates amount/asset/account details
+ * against `paymentFlowSchema` via React Hook Form, then re-validates with
+ * `validatePaymentFlow` on submit. Submission currently only logs the payload
+ * (the interactive-anchor API call is not yet wired up).
+ */
 export const Sep24Flow: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
