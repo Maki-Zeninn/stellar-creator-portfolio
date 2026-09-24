@@ -46,7 +46,7 @@ export async function createContext(req: NextRequest): Promise<Context> {
     const token = authorization.slice(7);
     try {
       const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const decoded = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload & { userId: string };
       
       // Fetch user from database
       const dbUser = await prisma.user.findUnique({
@@ -136,7 +136,7 @@ const circuitBreakerMw = t.middleware(async ({ ctx, next }) => {
       // Attach Retry-After to the underlying Next.js response when we can
       // reach it (tRPC Next.js adapter exposes the response object via context
       // in some configurations; we guard with a type-safe check).
-      const res = (ctx as any).res as NextResponse | undefined;
+      const res = (ctx as Context & { res?: NextResponse }).res;
       if (res && typeof res.headers?.set === 'function') {
         res.headers.set('Retry-After', String(err.retryAfterSeconds));
       }
